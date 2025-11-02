@@ -1,0 +1,14 @@
+build/
+*.o
+*.exe
+*.out
+laying_grass
+laying_grass.exe
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+cmake-build-*/
+
