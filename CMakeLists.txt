@@ -8,6 +8,9 @@ set(SOURCE_DIR src)
 set(INCLUDE_DIR include)
 
 file(GLOB_RECURSE ALL_CPP "${SOURCE_DIR}/*.cpp")
+# S'assurer que TileParser.cpp et GameUtils.cpp sont inclus (peut être ajouté après création des fichiers)
+list(APPEND ALL_CPP "${SOURCE_DIR}/TileParser.cpp")
+list(APPEND ALL_CPP "${SOURCE_DIR}/GameUtils.cpp")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIR}/*.hpp")
 
 set(MAIN_APP ${SOURCE_DIR}/main.cpp)

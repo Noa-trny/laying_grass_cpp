@@ -1,6 +1,16 @@
 #include "../include/Game.hpp"
+#include "../include/TileParser.hpp"
+#include "../include/GameUtils.hpp"
 #include <iostream>
 #include <stdexcept>
+#include <fstream>
+#include <sstream>
+#include <random>
+#include <algorithm>
+#include <filesystem>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 Game::Game(int numPlayers)
     : board(numPlayers),
@@ -9,6 +19,12 @@ Game::Game(int numPlayers)
       currentPlayerIndex(0),
       running(true) {
     initializePlayers(numPlayers);
+    // Charger les tuiles au démarrage depuis data/tiles.json
+    try {
+        loadTilesFromJson();
+    } catch (const std::exception& ex) {
+        std::cerr << "Erreur chargement tiles.json: " << ex.what() << std::endl;
+    }
 }
 
 void Game::initializePlayers(int numPlayers) {
@@ -36,6 +52,7 @@ void Game::handlePlayerTurn(Player& player) {
         "Jouer une action",
         "Afficher le plateau",
         "Afficher les joueurs",
+        "Afficher 3 tuiles aleatoires",
         "Terminer la partie"
     };
     bool turnFinished = false;
@@ -53,7 +70,13 @@ void Game::handlePlayerTurn(Player& player) {
             case 3:
                 showPlayers();
                 break;
-            case 4:
+            case 4: {
+                // afficher 3 tuiles aléatoires
+                auto tiles = getRandomTiles(3);
+                showTiles(tiles);
+                break;
+            }
+            case 5:
                 if (InputHandler::confirmAction("Confirmer la fin de partie ?")) {
                     running = false;
                     turnFinished = true;
@@ -103,6 +126,56 @@ void Game::showSummary() const {
     std::cout << std::endl;
     std::cout << "Fin de partie après " << currentRound + 1 << " tours complets." << std::endl;
     showPlayers();
+}
+
+void Game::loadTilesFromJson(const std::string& filepath) {
+    // Délégation au parser centralisé
+    availableTiles.clear();
+    availableTiles = TileParser::loadTilesFromJson(filepath);
+}
+
+void Game::loadTilesFromJson() {
+    // essaie plusieurs chemins plausibles
+    std::vector<std::string> candidates = {
+        "data/tiles.json",
+        "./data/tiles.json",
+        "../data/tiles.json",
+        "./tiles.json",
+        "tiles.json"
+    };
+
+#ifdef _WIN32
+    // essayer aussi par rapport au répertoire de l'exécutable
+    char buf[MAX_PATH];
+    if (GetModuleFileNameA(nullptr, buf, MAX_PATH) > 0) {
+        std::filesystem::path exePath(buf);
+        auto dir = exePath.parent_path();
+        candidates.push_back((dir / "data" / "tiles.json").string());
+        candidates.push_back((dir / ".." / "data" / "tiles.json").lexically_normal().string());
+    }
+#endif
+
+    for (const auto& c : candidates) {
+        try {
+            availableTiles = TileParser::loadTilesFromJson(c);
+            return;
+        } catch (...) {
+            // ignorer et essayer le suivant
+        }
+    }
+    throw std::runtime_error("Impossible de trouver data/tiles.json dans les chemins candidats");
+}
+
+std::vector<Tile> Game::getRandomTiles(int n) const {
+    return GameUtils::pickRandomTiles(availableTiles, n);
+}
+
+void Game::showTile(const Tile& tile) const {
+    GameUtils::showTileConsole(tile);
+}
+
+void Game::showTiles(const std::vector<Tile>& tiles) const {
+    GameUtils::showTilesConsole(tiles);
 }
 
 void Game::run() {
