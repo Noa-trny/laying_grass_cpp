@@ -86,5 +86,4 @@ Voir `docs/ARCHITECTURE.md` pour l'architecture détaillée.
 
 ---
 
-**Date limite** : 13 novembre 2025
 

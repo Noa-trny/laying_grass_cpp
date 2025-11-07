@@ -7,14 +7,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SOURCE_DIR src)
 set(INCLUDE_DIR include)
 
-file(GLOB_RECURSE SOURCES "${SOURCE_DIR}/*.cpp")
+file(GLOB_RECURSE ALL_CPP "${SOURCE_DIR}/*.cpp")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIR}/*.hpp")
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+set(MAIN_APP ${SOURCE_DIR}/main.cpp)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDE_DIR})
+# Sources communs = tous les .cpp, en excluant les fichiers réseau et main.cpp
+set(SOURCES_COMMON ${ALL_CPP})
+list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)main(_client|_server)?\\.cpp$")
+list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)(Network|Client|Server|Protocol)\\.cpp$")
 
-if(WIN32)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE _WIN32_WINNT=0x0601)
-endif()
+# Définir la cible avec le point d'entrée main
+set(SOURCES_APP ${SOURCES_COMMON} ${MAIN_APP} ${HEADERS})
 
+add_executable(${PROJECT_NAME} ${SOURCES_APP})
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIR})

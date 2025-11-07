@@ -3,6 +3,9 @@
 
 #include "Tile.hpp"
 #include "Position.hpp"
+#include "Constants.hpp"
+#include <string>
+#include <vector>
 
 class InputHandler {
 public:
@@ -18,4 +21,3 @@ public:
 };
 
 #endif
-

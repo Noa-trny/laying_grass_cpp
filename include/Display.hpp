@@ -5,6 +5,9 @@
 #include "Player.hpp"
 #include "Tile.hpp"
 #include <vector>
+#include <string>
+
+class Queue; // forward declaration
 
 class Display {
 public:
@@ -19,4 +22,3 @@ public:
 };
 
 #endif
-
