@@ -14,13 +14,13 @@ std::string trim(std::string value) {
     if (beginIt >= endIt) {
         return {};
     }
-    return std::string(beginIt, endIt);
+    return {beginIt, endIt};
 }
 
 std::string readLineOrThrow() {
     std::string line;
     if (!std::getline(std::cin, line)) {
-        throw std::runtime_error("Entrée interrompue");
+        throw std::runtime_error("Entree interrompue");
     }
     return line;
 }
@@ -29,7 +29,7 @@ int readBoundedInt(int minValue, int maxValue) {
     while (true) {
         std::string line = trim(readLineOrThrow());
         if (line.empty()) {
-            std::cout << "Veuillez entrer une valeur numerique." << std::endl;
+            std::cout << "Veuillez entrer une valeur numerique." << '\n';
             continue;
         }
         bool isValid = true;
@@ -40,12 +40,12 @@ int readBoundedInt(int minValue, int maxValue) {
             }
         }
         if (!isValid) {
-            std::cout << "Entree invalide. Saisir un nombre entre " << minValue << " et " << maxValue << "." << std::endl;
+            std::cout << "Entree invalide. Saisir un nombre entre " << minValue << " et " << maxValue << "." << '\n';
             continue;
         }
         int value = std::stoi(line);
         if (value < minValue || value > maxValue) {
-            std::cout << "Valeur hors limites. Saisir un nombre entre " << minValue << " et " << maxValue << "." << std::endl;
+            std::cout << "Valeur hors limites. Saisir un nombre entre " << minValue << " et " << maxValue << "." << '\n';
             continue;
         }
         return value;
@@ -54,11 +54,28 @@ int readBoundedInt(int minValue, int maxValue) {
 }
 
 Position InputHandler::getTilePosition() {
-    std::cout << "Ligne: ";
-    int row = readBoundedInt(0, 99);
-    std::cout << "Colonne: ";
-    int col = readBoundedInt(0, 99);
-    return Position{row, col};
+    while (true) {
+        std::cout << "Ligne (A-Z): ";
+        std::string line = trim(readLineOrThrow());
+        if (line.empty()) continue;
+        char rch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
+        if (rch < 'A' || rch > 'Z') {
+            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
+            continue;
+        }
+        int row = rch - 'A';
+
+        std::cout << "Colonne (A-Z): ";
+        line = trim(readLineOrThrow());
+        if (line.empty()) continue;
+        char cch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
+        if (cch < 'A' || cch > 'Z') {
+            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
+            continue;
+        }
+        int col = cch - 'A';
+        return Position{row, col};
+    }
 }
 
 int InputHandler::getTileOrientation(const Tile&) {
@@ -71,12 +88,16 @@ int InputHandler::getTileOrientation(const Tile&) {
         }
         std::stringstream ss(line);
         int value = 0;
-        if (ss >> value && !(ss >> std::ws).peek()) {
-            if (std::find(allowed.begin(), allowed.end(), value) != allowed.end()) {
-                return value;
+        if (ss >> value) {
+            // consommer les espaces restants puis vérifier qu'il n'y a plus de caractères
+            ss >> std::ws;
+            if (ss.eof()) {
+                if (std::find(allowed.begin(), allowed.end(), value) != allowed.end()) {
+                    return value;
+                }
             }
         }
-        std::cout << "Entrée invalide. Choisir parmi 0, 90, 180 ou 270." << std::endl;
+        std::cout << "Entrée invalide. Choisir parmi 0, 90, 180 ou 270." << '\n';
     }
 }
 
@@ -102,7 +123,8 @@ bool InputHandler::confirmAction(const std::string& prompt) {
         if (value == 'n') {
             return false;
         }
-        std::cout << "Répondre par o ou n." << std::endl;
+        std::cout << "Repondre par o ou n." << std::endl;
+        std::cout.flush();
     }
 }
 
@@ -121,11 +143,28 @@ int InputHandler::getMenuChoice(const std::vector<std::string>& options) {
 }
 
 Position InputHandler::getStonePosition() {
-    std::cout << "Ligne de la pierre: ";
-    int row = readBoundedInt(0, 99);
-    std::cout << "Colonne de la pierre: ";
-    int col = readBoundedInt(0, 99);
-    return Position{row, col};
+    while (true) {
+        std::cout << "Ligne de la pierre (A-Z): ";
+        std::string line = trim(readLineOrThrow());
+        if (line.empty()) continue;
+        char rch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
+        if (rch < 'A' || rch > 'Z') {
+            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
+            continue;
+        }
+        int row = rch - 'A';
+
+        std::cout << "Colonne de la pierre (A-Z): ";
+        line = trim(readLineOrThrow());
+        if (line.empty()) continue;
+        char cch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
+        if (cch < 'A' || cch > 'Z') {
+            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
+            continue;
+        }
+        int col = cch - 'A';
+        return Position{row, col};
+    }
 }
 
 int InputHandler::getRobberyTarget(const std::vector<int>& availablePlayers) {

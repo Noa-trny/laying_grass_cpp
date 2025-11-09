@@ -1,12 +1,10 @@
 #include "../include/Game.hpp"
 #include "../include/TileParser.hpp"
 #include "../include/GameUtils.hpp"
+#include "../include/ConsoleUtils.hpp"
 #include <iostream>
 #include <stdexcept>
-#include <fstream>
-#include <sstream>
-#include <random>
-#include <algorithm>
+#include <vector>
 #include <filesystem>
 #ifdef _WIN32
 #include <windows.h>
@@ -19,6 +17,16 @@ Game::Game(int numPlayers)
       currentPlayerIndex(0),
       running(true) {
     initializePlayers(numPlayers);
+    // Activer séquences ANSI sous Windows si possible
+#ifdef _WIN32
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut != INVALID_HANDLE_VALUE) {
+        DWORD mode = 0;
+        if (GetConsoleMode(hOut, &mode)) {
+            SetConsoleMode(hOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+#endif
     // Charger les tuiles au démarrage depuis data/tiles.json
     try {
         loadTilesFromJson();
@@ -42,41 +50,154 @@ void Game::initializePlayers(int numPlayers) {
     }
 }
 
-void Game::showTurnIntro(const Player& player) const {
-    std::cout << std::endl;
-    std::cout << "Tour " << currentRound + 1 << " | Joueur " << player.getId() << " : " << player.getName() << std::endl;
-}
-
 void Game::handlePlayerTurn(Player& player) {
+    // Simplified menu: jouer action ou terminer
     const std::vector<std::string> options = {
         "Jouer une action",
-        "Afficher le plateau",
-        "Afficher les joueurs",
-        "Afficher 3 tuiles aleatoires",
         "Terminer la partie"
     };
+
     bool turnFinished = false;
+
+    // Nettoyer la console et afficher l'essentiel (plateau + joueurs) — sans tuiles tant que l'on n'a pas choisi d'agir
+    ConsoleUtils::clearConsole();
+    showTurnIntro(player);
+    showBoard();
+    showPlayers();
+
     while (!turnFinished && running) {
         int choice = InputHandler::getMenuChoice(options);
         switch (choice) {
-            case 1:
-                std::cout << player.getName() << " place une tuile fictive." << std::endl;
-                player.incrementGrassTiles();
+            case 1: {
+                // Lorsque le joueur décide de jouer, tirer et afficher les 3 tuiles
+                auto tiles = getRandomTiles(3);
+
+                ConsoleUtils::clearConsole();
+                showTurnIntro(player);
+                showBoard();
+                showPlayers();
+
+                if (!tiles.empty()) {
+                    std::string col = ConsoleUtils::colorForPlayer(player.getId());
+                    // afficher la tuile courante comme (1) et les prochaines comme (2),(3)
+                    GameUtils::showTileConsoleColored(tiles[0], col, ConsoleUtils::RESET_COLOR, 1);
+                    if (tiles.size() > 1) {
+                        std::vector<Tile> nextTiles(tiles.begin() + 1, tiles.end());
+                        std::vector<int> nums;
+                        nums.reserve(nextTiles.size());
+                        for (int i = 0; i < static_cast<int>(nextTiles.size()); ++i) nums.push_back(i + 2); // 2..n
+                        GameUtils::showTilesConsoleColored(nextTiles, col, ConsoleUtils::RESET_COLOR, nums);
+                    }
+                }
+
+                // Jouer une action : sélectionner parmi les 3 tuiles affichées et poser
+                if (tiles.empty()) {
+                    std::cout << "Aucune tuile disponible." << '\n';
+                    turnFinished = true;
+                    break;
+                }
+                bool placed = false;
+                while (!placed) {
+                    int sel = InputHandler::getTileSelection(tiles);
+                    if (sel < 0 || sel >= static_cast<int>(tiles.size())) {
+                        std::cout << "Selection invalide." << std::endl;
+                        if (!InputHandler::confirmAction("Voulez-vous reessayer la selection ?")) break;
+                        continue;
+                    }
+                    const Tile& chosenRef = tiles[sel];
+                    Tile chosen = chosenRef; // copy for orientation
+                    // choisir orientation
+                    int orientation = InputHandler::getTileOrientation(chosen);
+                    Tile oriented = chosen;
+                    if (orientation == 90) oriented = chosen.rotate90();
+                    else if (orientation == 180) oriented = chosen.rotate180();
+                    else if (orientation == 270) oriented = chosen.rotate270();
+
+                    // interactive positioning with overlay preview
+                    bool changeTileRequested = false;
+                    std::string col = ConsoleUtils::colorForPlayer(player.getId());
+                    while (!changeTileRequested && !placed) {
+                        // ask for candidate position (letters)
+                        Position candidate = InputHandler::getTilePosition();
+                        // show overlay preview
+                        ConsoleUtils::clearConsole();
+                        showTurnIntro(player);
+                        GameUtils::showBoardWithOverlay(board, oriented, candidate, col, ConsoleUtils::RESET_COLOR);
+                        showPlayers();
+
+                        if (!InputHandler::confirmAction("Confirmer le placement ici ?")) {
+                            // ask if change tile
+                            if (InputHandler::confirmAction("Voulez-vous changer de tuile ?")) {
+                                changeTileRequested = true;
+                                break; // go back to tile selection
+                            }
+                            // otherwise clear preview and loop to pick another candidate
+                            ConsoleUtils::clearConsole();
+                            showTurnIntro(player);
+                            showBoard();
+                            showPlayers();
+                            continue;
+                        }
+
+                        // l'utilisateur a confirme; nettoyer l'ecran avant d'afficher le resultat pour eviter caracteres residuels
+                        ConsoleUtils::clearConsole();
+
+                        // user confirmed position, validate
+                        if (board.canPlaceTile(oriented, candidate, player.getId())) {
+                            board.placeTile(oriented, candidate, player.getId());
+                            player.incrementGrassTiles();
+                            // afficher plateau mis a jour proprement
+                            showTurnIntro(player);
+                            showBoard();
+                            showPlayers();
+                            std::cout << "Tuile posee avec succes." << '\n';
+                            placed = true;
+                            break;
+                        } else {
+                            // afficher message d'erreur sur un ecran propre
+                            std::cout << "Placement invalide a la position choisie." << '\n';
+                            if (!InputHandler::confirmAction("Voulez-vous reessayer la position ?")) {
+                                if (InputHandler::confirmAction("Voulez-vous changer de tuile ?")) {
+                                    changeTileRequested = true;
+                                    break;
+                                }
+                                break;
+                            }
+                            // else (user veut reessayer la position) : nettoyer l'ecran avant de re-previsualiser
+                            ConsoleUtils::clearConsole();
+                            showTurnIntro(player);
+                            showBoard();
+                            showPlayers();
+                            // puis continuer la boucle pour redemander la position
+                        }
+                    }
+                    if (changeTileRequested) {
+                        // re-display tile choices
+                        ConsoleUtils::clearConsole();
+                        showTurnIntro(player);
+                        showBoard();
+                        showPlayers();
+                        std::string col2 = ConsoleUtils::colorForPlayer(player.getId());
+                        GameUtils::showTileConsoleColored(tiles[0], col2, ConsoleUtils::RESET_COLOR, 1);
+                        if (tiles.size() > 1) {
+                            std::vector<Tile> nextTiles(tiles.begin() + 1, tiles.end());
+                            std::vector<int> nums;
+                            nums.reserve(nextTiles.size());
+                            for (int i = 0; i < static_cast<int>(nextTiles.size()); ++i) nums.push_back(i + 2);
+                            GameUtils::showTilesConsoleColored(nextTiles, col2, ConsoleUtils::RESET_COLOR, nums);
+                        }
+                        continue; // go back to tile selection loop
+                    }
+                }
+                // après pose, afficher plateau mis à jour
+                ConsoleUtils::clearConsole();
+                showTurnIntro(player);
+                showBoard();
+                showPlayers();
                 turnFinished = true;
                 break;
-            case 2:
-                showBoard();
-                break;
-            case 3:
-                showPlayers();
-                break;
-            case 4: {
-                // afficher 3 tuiles aléatoires
-                auto tiles = getRandomTiles(3);
-                showTiles(tiles);
-                break;
             }
-            case 5:
+            case 2:
                 if (InputHandler::confirmAction("Confirmer la fin de partie ?")) {
                     running = false;
                     turnFinished = true;
@@ -97,35 +218,6 @@ void Game::advanceTurn() {
         currentPlayerIndex = 0;
         ++currentRound;
     }
-}
-
-void Game::showBoard() const {
-    int size = board.getSize();
-    std::cout << "Plateau " << size << " x " << size << std::endl;
-    for (int row = 0; row < size; ++row) {
-        for (int col = 0; col < size; ++col) {
-            int cell = board.getCell(row, col);
-            std::cout << (cell == 0 ? '.' : '#');
-        }
-        std::cout << std::endl;
-        if (row >= 9 && size > 10) {
-            std::cout << "..." << std::endl;
-            break;
-        }
-    }
-}
-
-void Game::showPlayers() const {
-    std::cout << "Participants:" << std::endl;
-    for (const auto& player : players) {
-        std::cout << "#" << player.getId() << " " << player.getName() << " | Tuiles posées: " << player.getGrassTilesPlaced() << std::endl;
-    }
-}
-
-void Game::showSummary() const {
-    std::cout << std::endl;
-    std::cout << "Fin de partie après " << currentRound + 1 << " tours complets." << std::endl;
-    showPlayers();
 }
 
 void Game::loadTilesFromJson(const std::string& filepath) {
@@ -170,14 +262,6 @@ std::vector<Tile> Game::getRandomTiles(int n) const {
     return GameUtils::pickRandomTiles(availableTiles, n);
 }
 
-void Game::showTile(const Tile& tile) const {
-    GameUtils::showTileConsole(tile);
-}
-
-void Game::showTiles(const std::vector<Tile>& tiles) const {
-    GameUtils::showTilesConsole(tiles);
-}
-
 void Game::run() {
     if (players.empty()) {
         std::cout << "Aucun joueur enregistré." << std::endl;
@@ -185,11 +269,12 @@ void Game::run() {
     }
     while (running) {
         Player& current = players[currentPlayerIndex];
-        showTurnIntro(current);
         handlePlayerTurn(current);
         if (running) {
             advanceTurn();
-        }
-    }
-    showSummary();
+            // clear screen between turns to aerer le jeu
+            ConsoleUtils::clearConsole();
+         }
+     }
+    // Résumé final déplacé dans GameUI
 }
