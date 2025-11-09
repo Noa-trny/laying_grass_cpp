@@ -5,6 +5,7 @@
 #include "Player.hpp"
 #include "InputHandler.hpp"
 #include "Tile.hpp"
+#include "Queue.hpp"
 #include <vector>
 #include <string>
 
@@ -16,6 +17,10 @@ private:
     int currentPlayerIndex;
     bool running;
 
+    Queue tileQueue; // file des tuiles
+    Tile currentTile; // tuile en cours de placement
+    bool hasCurrentTile;
+
     void initializePlayers(int numPlayers);
     void showTurnIntro(const Player& player) const;
     void handlePlayerTurn(Player& player);
@@ -24,13 +29,19 @@ private:
     void showPlayers() const;
     void showSummary() const;
 
-    // Tile management
+    // Chargement / gestion tuiles
     std::vector<Tile> availableTiles; // toutes les tuiles chargées depuis le JSON
     void loadTilesFromJson(const std::string& filepath);
-    void loadTilesFromJson(); // essayer plusieurs chemins candidats
+    void loadTilesFromJson(); // essaie chemins candidats
     std::vector<Tile> getRandomTiles(int n) const;
     void showTile(const Tile& tile) const;
     void showTiles(const std::vector<Tile>& tiles) const;
+
+    void drawNextTile();
+    void rotateCurrentTile();
+
+    void placeCurrentTile(Player& player);
+    void exchangeCurrentTile(Player& player);
 
 public:
     Game(int numPlayers);

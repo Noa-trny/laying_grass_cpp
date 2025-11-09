@@ -17,13 +17,20 @@ Game::Game(int numPlayers)
       players(),
       currentRound(0),
       currentPlayerIndex(0),
-      running(true) {
+      running(true),
+      tileQueue(numPlayers, std::vector<Tile>{}),
+      currentTile(-1, {}),
+      hasCurrentTile(false) {
     initializePlayers(numPlayers);
-    // Charger les tuiles au démarrage depuis data/tiles.json
+    // Charger les tuiles au demarrage depuis data/tiles.json
     try {
         loadTilesFromJson();
     } catch (const std::exception& ex) {
         std::cerr << "Erreur chargement tiles.json: " << ex.what() << std::endl;
+    }
+    // Initialiser la queue avec les tuiles disponibles si presentes
+    if (!availableTiles.empty()) {
+        tileQueue = Queue(static_cast<int>(players.size()), availableTiles);
     }
 }
 
@@ -47,36 +54,121 @@ void Game::showTurnIntro(const Player& player) const {
     std::cout << "Tour " << currentRound + 1 << " | Joueur " << player.getId() << " : " << player.getName() << std::endl;
 }
 
+void Game::drawNextTile() {
+    if (!tileQueue.hasNext()) {
+        hasCurrentTile = false;
+        return;
+    }
+    currentTile = tileQueue.getNext();
+    hasCurrentTile = currentTile.isValid();
+    if (hasCurrentTile) {
+        std::cout << "Tuile tiree:" << std::endl;
+        showTile(currentTile);
+    } else {
+        std::cout << "Aucune tuile disponible." << std::endl;
+    }
+}
+
+void Game::rotateCurrentTile() {
+    if (!hasCurrentTile) return;
+    currentTile = currentTile.rotate90();
+    std::cout << "Tuile apres rotation:" << std::endl;
+    showTile(currentTile);
+}
+
+void Game::placeCurrentTile(Player& player) {
+    if (!hasCurrentTile) {
+        std::cout << "Pas de tuile a placer." << std::endl;
+        return;
+    }
+    Position pos = InputHandler::getTilePosition();
+    int orientation = InputHandler::getTileOrientation(currentTile);
+    Tile toPlace = currentTile;
+    if (orientation == 90) toPlace = toPlace.rotate90();
+    else if (orientation == 180) toPlace = toPlace.rotate180();
+    else if (orientation == 270) toPlace = toPlace.rotate270();
+
+    if (!board.canPlaceTile(toPlace, pos, player.getId())) {
+        std::cout << "Placement invalide (limites, collision ou non-connexite)." << std::endl;
+        return;
+    }
+    board.placeTile(toPlace, pos, player.getId());
+    hasCurrentTile = false;
+    std::cout << "Tuile placee." << std::endl;
+}
+
+void Game::exchangeCurrentTile(Player& player) {
+    if (!hasCurrentTile) {
+        std::cout << "Pas de tuile a echanger." << std::endl;
+        return;
+    }
+    if (player.getExchangeCoupons() <= 0) {
+        std::cout << "Aucun coupon d'echange." << std::endl;
+        return;
+    }
+    auto preview = tileQueue.peekNext(EXCHANGE_PREVIEW_SIZE);
+    if (preview.empty()) {
+        std::cout << "Pas assez de tuiles en file pour echanger." << std::endl;
+        return;
+    }
+    std::cout << "Apercu des prochaines tuiles:" << std::endl;
+    showTiles(preview);
+    std::cout << "Choisissez une tuile (1-" << preview.size() << ") a prendre: ";
+    int idx = InputHandler::getTileSelection(preview);
+    Tile chosen = tileQueue.exchangeTile(idx);
+    if (!chosen.isValid()) {
+        std::cout << "Echange impossible." << std::endl;
+        return;
+    }
+    tileQueue.returnToQueue(currentTile);
+    currentTile = chosen;
+    player.useExchangeCoupon();
+    std::cout << "Tuile echangee. Nouvelle tuile:" << std::endl;
+    showTile(currentTile);
+}
+
 void Game::handlePlayerTurn(Player& player) {
+    if (!hasCurrentTile) {
+        drawNextTile();
+    }
     const std::vector<std::string> options = {
-        "Jouer une action",
+        "Placer la tuile",
+        "Pivoter la tuile (90 deg)",
         "Afficher le plateau",
         "Afficher les joueurs",
-        "Afficher 3 tuiles aleatoires",
+        "Apercu de 3 tuiles aleatoires",
+        "Echanger la tuile (si coupon)",
         "Terminer la partie"
     };
     bool turnFinished = false;
     while (!turnFinished && running) {
+        if (hasCurrentTile) {
+            std::cout << "Tuile courante:" << std::endl; showTile(currentTile);
+        }
         int choice = InputHandler::getMenuChoice(options);
         switch (choice) {
             case 1:
-                std::cout << player.getName() << " place une tuile fictive." << std::endl;
-                player.incrementGrassTiles();
+                placeCurrentTile(player);
                 turnFinished = true;
                 break;
             case 2:
-                showBoard();
+                rotateCurrentTile();
                 break;
             case 3:
+                showBoard();
+                break;
+            case 4:
                 showPlayers();
                 break;
-            case 4: {
-                // afficher 3 tuiles aléatoires
+            case 5: {
                 auto tiles = getRandomTiles(3);
                 showTiles(tiles);
                 break;
             }
-            case 5:
+            case 6:
+                exchangeCurrentTile(player);
+                break;
+            case 7:
                 if (InputHandler::confirmAction("Confirmer la fin de partie ?")) {
                     running = false;
                     turnFinished = true;
@@ -114,24 +206,22 @@ void Game::showBoard() const {
 void Game::showPlayers() const {
     std::cout << "Participants:" << std::endl;
     for (const auto& player : players) {
-        std::cout << "#" << player.getId() << " " << player.getName() << " | Tuiles posées: " << player.getGrassTilesPlaced() << std::endl;
+        std::cout << "#" << player.getId() << " " << player.getName() << " | Tuiles posees: " << player.getGrassTilesPlaced() << std::endl;
     }
 }
 
 void Game::showSummary() const {
     std::cout << std::endl;
-    std::cout << "Fin de partie après " << currentRound + 1 << " tours complets." << std::endl;
+    std::cout << "Fin de partie apres " << currentRound + 1 << " tours complets." << std::endl;
     showPlayers();
 }
 
 void Game::loadTilesFromJson(const std::string& filepath) {
-    // Délégation au parser centralisé
     availableTiles.clear();
     availableTiles = TileParser::loadTilesFromJson(filepath);
 }
 
 void Game::loadTilesFromJson() {
-    // essaie plusieurs chemins plausibles
     std::vector<std::string> candidates = {
         "data/tiles.json",
         "./data/tiles.json",
@@ -139,9 +229,7 @@ void Game::loadTilesFromJson() {
         "./tiles.json",
         "tiles.json"
     };
-
 #ifdef _WIN32
-    // essayer aussi par rapport au répertoire de l'exécutable
     char buf[MAX_PATH];
     if (GetModuleFileNameA(nullptr, buf, MAX_PATH) > 0) {
         std::filesystem::path exePath(buf);
@@ -150,33 +238,23 @@ void Game::loadTilesFromJson() {
         candidates.push_back((dir / ".." / "data" / "tiles.json").lexically_normal().string());
     }
 #endif
-
     for (const auto& c : candidates) {
         try {
             availableTiles = TileParser::loadTilesFromJson(c);
             return;
         } catch (...) {
-            // ignorer et essayer le suivant
         }
     }
     throw std::runtime_error("Impossible de trouver data/tiles.json dans les chemins candidats");
 }
 
-std::vector<Tile> Game::getRandomTiles(int n) const {
-    return GameUtils::pickRandomTiles(availableTiles, n);
-}
-
-void Game::showTile(const Tile& tile) const {
-    GameUtils::showTileConsole(tile);
-}
-
-void Game::showTiles(const std::vector<Tile>& tiles) const {
-    GameUtils::showTilesConsole(tiles);
-}
+std::vector<Tile> Game::getRandomTiles(int n) const { return GameUtils::pickRandomTiles(availableTiles, n); }
+void Game::showTile(const Tile& tile) const { GameUtils::showTileConsole(tile); }
+void Game::showTiles(const std::vector<Tile>& tiles) const { GameUtils::showTilesConsole(tiles); }
 
 void Game::run() {
     if (players.empty()) {
-        std::cout << "Aucun joueur enregistré." << std::endl;
+        std::cout << "Aucun joueur enregistre." << std::endl;
         return;
     }
     while (running) {

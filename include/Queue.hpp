@@ -3,32 +3,30 @@
 
 #include "Tile.hpp"
 #include <vector>
-#include <queue>
 
 class Queue {
 private:
     std::vector<Tile> mainQueue;
-    std::vector<Tile> exchangeQueue;
     size_t currentIndex;
-    int totalTiles;
+    int totalTiles; // cible théorique (peut être <= mainQueue.size())
     int numPlayers;
-    
-    void initializeQueue();
+
     void shuffleQueue();
-    
+
 public:
-    Queue(int numPlayers);
-    
-    bool hasNext() const;
-    Tile getNext();
-    std::vector<Tile> peekNext(int count);
-    
+    // Construction à partir du nombre de joueurs et d'une source de tuiles (copie puis shuffle)
+    Queue(int numPlayers, const std::vector<Tile>& sourceTiles);
+
+    [[nodiscard]] bool hasNext() const;
+    [[nodiscard]] Tile getNext();
+    [[nodiscard]] std::vector<Tile> peekNext(int count) const;
+
+    // Échange: choisir une tuile parmi l'aperçu des prochaines (index basé sur 0)
     Tile exchangeTile(int selectedIndex);
-    
+
     void returnToQueue(const Tile& tile);
-    
-    int getRemainingCount() const;
+
+    [[nodiscard]] int getRemainingCount() const;
 };
 
 #endif
-

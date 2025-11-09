@@ -20,7 +20,7 @@ std::string trim(std::string value) {
 std::string readLineOrThrow() {
     std::string line;
     if (!std::getline(std::cin, line)) {
-        throw std::runtime_error("Entrée interrompue");
+        throw std::runtime_error("Entree interrompue");
     }
     return line;
 }
@@ -71,12 +71,15 @@ int InputHandler::getTileOrientation(const Tile&) {
         }
         std::stringstream ss(line);
         int value = 0;
-        if (ss >> value && !(ss >> std::ws).peek()) {
-            if (std::find(allowed.begin(), allowed.end(), value) != allowed.end()) {
-                return value;
+        if (ss >> value) {
+            ss >> std::ws; // consommer les espaces restants
+            if (ss.eof()) {
+                if (std::find(allowed.begin(), allowed.end(), value) != allowed.end()) {
+                    return value;
+                }
             }
         }
-        std::cout << "Entrée invalide. Choisir parmi 0, 90, 180 ou 270." << std::endl;
+        std::cout << "Entree invalide. Choisir parmi 0, 90, 180 ou 270." << std::endl;
     }
 }
 
@@ -102,7 +105,7 @@ bool InputHandler::confirmAction(const std::string& prompt) {
         if (value == 'n') {
             return false;
         }
-        std::cout << "Répondre par o ou n." << std::endl;
+        std::cout << "Repondre par o ou n." << std::endl;
     }
 }
 

@@ -12,7 +12,7 @@ static std::string readFileToString(const std::string& path) {
     return ss.str();
 }
 
-// utilitaire pour trouver le ']' correspondant à un '[' (gère imbrication)
+// utilitaire pour trouver le ']' correspondant a un '[' (gere imbrication)
 static size_t findMatchingBracket(const std::string& s, size_t openPos) {
     if (openPos >= s.size() || s[openPos] != '[') return std::string::npos;
     int depth = 0;
@@ -89,9 +89,8 @@ std::vector<Tile> loadTilesFromJson(const std::string& filepath) {
         pos = end + 1;
     }
 
-    if (result.empty()) throw std::runtime_error("Aucune tuile chargée depuis " + filepath);
+    if (result.empty()) throw std::runtime_error("Aucune tuile chargee depuis " + filepath);
     return result;
 }
 
 } // namespace TileParser
-

@@ -101,4 +101,3 @@ void showTilesConsole(const std::vector<Tile>& tiles) {
 }
 
 } // namespace GameUtils
-
