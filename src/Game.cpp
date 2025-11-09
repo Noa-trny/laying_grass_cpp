@@ -107,11 +107,7 @@ void Game::showBoard() const {
             int cell = board.getCell(row, col);
             std::cout << (cell == 0 ? '.' : '#');
         }
-        std::cout << std::endl;
-        if (row >= 9 && size > 10) {
-            std::cout << "..." << std::endl;
-            break;
-        }
+        std::cout << '\n';
     }
 }
 
