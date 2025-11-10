@@ -27,12 +27,14 @@ public:
     bool hasStone(int row, int col) const;
     
     void placeTile(const Tile& tile, Position pos, int playerId);
+    void setCell(int row, int col, int playerId);
     bool canPlaceTile(const Tile& tile, Position pos, int playerId) const;
     
     void placeStone(Position pos);
     void removeStone(Position pos, bool usedCoupon);
     
     void addTerritory(int playerId, Position pos);
+    void removeTerritory(int playerId, Position pos);
     std::set<Position> getTerritory(int playerId) const;
     
     bool isConnectedToTerritory(const Tile& tile, Position pos, int playerId) const;

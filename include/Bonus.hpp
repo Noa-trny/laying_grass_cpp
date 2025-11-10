@@ -18,7 +18,7 @@ public:
     bool activateStone(Position pos, Player& player);
     bool activateRobbery(Position pos, Player& fromPlayer, Player& toPlayer);
     
-    void processBonusCapture(int row, int col, int playerId, Player& player);
+    void processBonusCapture(int row, int col, int playerId, Player& player, std::vector<Player>& allPlayers);
 };
 
 #endif

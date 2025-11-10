@@ -17,5 +17,7 @@ bool Player::useExchangeCoupon() {
 
 void Player::incrementGrassTiles() { ++grassTilesPlaced; }
 
-bool Player::hasStartingTile() const { return true; }
+void Player::setStartPosition(Position pos) { startPosition = pos; }
+
+bool Player::hasStartingTile() const { return grassTilesPlaced > 0; }
 

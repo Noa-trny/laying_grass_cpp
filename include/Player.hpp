@@ -26,6 +26,7 @@ public:
     bool useExchangeCoupon();
     
     void incrementGrassTiles();
+    void setStartPosition(Position pos);
     
     bool hasStartingTile() const;
 };

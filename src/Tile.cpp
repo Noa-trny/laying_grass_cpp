@@ -1,5 +1,8 @@
 #include "../include/Tile.hpp"
 
+Tile::Tile()
+    : id(0), shape(), width(0), height(0) {}
+
 Tile::Tile(int id_, const std::vector<std::vector<bool>>& shape_)
     : id(id_), shape(shape_), width(shape_.empty() ? 0 : static_cast<int>(shape_[0].size())), height(static_cast<int>(shape_.size())) {}
 
