@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <random>
 #include <algorithm>
+#include <set>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -185,14 +186,32 @@ void Game::handlePlayerTurn(Player& player) {
             player.incrementGrassTiles();
 
             auto shape = oriented.getShape();
+            std::set<Position> placedPositions;
             for (int r = 0; r < static_cast<int>(shape.size()); ++r) {
                 for (int c = 0; c < static_cast<int>(shape[r].size()); ++c) {
                     if (shape[r][c]) {
                         Position tilePos(candidate.row + r, candidate.col + c);
                         board.addTerritory(player.getId(), tilePos);
-                        
-                        if (board.checkBonusCapture(tilePos.row, tilePos.col, player.getId())) {
-                            bonusManager.processBonusCapture(tilePos.row, tilePos.col, player.getId(), player, players);
+                        placedPositions.insert(tilePos);
+                    }
+                }
+            }
+            
+            int boardSize = board.getSize();
+            std::set<Position> checkedBonuses;
+            for (const auto& tilePos : placedPositions) {
+                int offsets[4][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
+                for (int i = 0; i < 4; ++i) {
+                    int nr = tilePos.row + offsets[i][0];
+                    int nc = tilePos.col + offsets[i][1];
+                    if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
+                        Position bonusPos(nr, nc);
+                        if (checkedBonuses.find(bonusPos) == checkedBonuses.end() && 
+                            board.isBonusSquare(nr, nc)) {
+                            checkedBonuses.insert(bonusPos);
+                            if (board.checkBonusCapture(nr, nc, player.getId())) {
+                                bonusManager.processBonusCapture(nr, nc, player.getId(), player, players);
+                            }
                         }
                     }
                 }
