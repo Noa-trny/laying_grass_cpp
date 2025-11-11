@@ -100,18 +100,12 @@ Tile Queue::exchangeTile(int selectedIndex) {
     Tile selected = preview[selectedIndex];
     
     for (int i = 0; i < selectedIndex; ++i) {
-        if (i < static_cast<int>(preview.size())) {
-            exchangeQueue.push_back(preview[i]);
+        if (i < static_cast<int>(preview.size()) && currentIndex + i < mainQueue.size()) {
+            exchangeQueue.push_back(mainQueue[currentIndex + i]);
         }
     }
     
     currentIndex += selectedIndex + 1;
-    
-    for (int i = selectedIndex + 1; i < EXCHANGE_PREVIEW_SIZE && i < static_cast<int>(preview.size()); ++i) {
-        if (currentIndex < static_cast<int>(mainQueue.size())) {
-            exchangeQueue.push_back(mainQueue[currentIndex++]);
-        }
-    }
     
     return selected;
 }

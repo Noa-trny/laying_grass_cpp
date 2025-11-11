@@ -99,6 +99,7 @@ void Game::handlePlayerTurn(Player& player) {
     showTurnIntro(player);
     showBoard();
     showPlayers();
+    std::cout << "Tuiles restantes dans la file: " << tileQueue.getRemainingCount() << std::endl;
 
     std::vector<std::string> options = {"Prendre la tuile suivante", "Echanger la tuile"};
     if (player.getExchangeCoupons() == 0) {
@@ -178,7 +179,7 @@ void Game::handlePlayerTurn(Player& player) {
             continue;
         }
 
-        bool isFirstTile = player.getGrassTilesPlaced() == 1;
+        bool isFirstTile = (player.getGrassTilesPlaced() == 1);
         if (validator.isValidPlacement(oriented, candidate, player, isFirstTile)) {
             board.placeTile(oriented, candidate, player.getId());
             player.incrementGrassTiles();
@@ -205,6 +206,19 @@ void Game::handlePlayerTurn(Player& player) {
             placed = true;
         } else {
             std::cout << "Placement invalide." << std::endl;
+            if (!validator.isWithinBounds(oriented, candidate)) {
+                std::cout << "Raison: La tuile depasse les limites du plateau." << std::endl;
+            } else if (!validator.noOverlap(oriented, candidate, player.getId())) {
+                std::cout << "Raison: La tuile chevauche une autre tuile." << std::endl;
+            } else if (!validator.noStoneConflict(oriented, candidate)) {
+                std::cout << "Raison: La tuile chevauche une pierre." << std::endl;
+            } else if (!validator.noEnemyContact(oriented, candidate, player.getId())) {
+                std::cout << "Raison: La tuile touche le territoire d'un autre joueur." << std::endl;
+            } else if (!validator.touchesTerritory(oriented, candidate, player.getId()) && !isFirstTile) {
+                std::cout << "Raison: La tuile ne touche pas votre territoire." << std::endl;
+            } else if (isFirstTile) {
+                std::cout << "Raison: La tuile ne touche pas votre tuile de depart." << std::endl;
+            }
             if (!InputHandler::confirmAction("Voulez-vous reessayer ?")) {
                 tileQueue.returnToQueue(currentTile);
                 tileDiscarded = true;
@@ -309,13 +323,37 @@ void Game::determineWinner() const {
     }
     
     ConsoleUtils::clearConsole();
-    std::cout << "=== RESULTATS ===" << std::endl;
-    for (int winnerId : winners) {
+    std::cout << "=== RESULTATS FINAUX ===" << std::endl;
+    std::cout << std::endl;
+    
+    for (const auto& player : players) {
+        SquareResult result = Algorithms::findLargestSquare(board, player.getId());
+        std::cout << ConsoleUtils::colorForPlayer(player.getId()) << player.getName() << ConsoleUtils::RESET_COLOR 
+                  << " - Plus grand carre: " << result.size << "x" << result.size 
+                  << " | Tuiles totales: " << player.getGrassTilesPlaced() << std::endl;
+    }
+    
+    std::cout << std::endl;
+    if (winners.size() == 1) {
         for (const auto& player : players) {
-            if (player.getId() == winnerId) {
-                std::cout << "Gagnant: " << player.getName() << std::endl;
+            if (player.getId() == winners[0]) {
+                std::cout << ">>> GAGNANT: " << ConsoleUtils::colorForPlayer(player.getId()) 
+                          << player.getName() << ConsoleUtils::RESET_COLOR << " <<<" << std::endl;
                 break;
             }
         }
+    } else {
+        std::cout << ">>> EGALITE entre: ";
+        for (size_t i = 0; i < winners.size(); ++i) {
+            for (const auto& player : players) {
+                if (player.getId() == winners[i]) {
+                    std::cout << ConsoleUtils::colorForPlayer(player.getId()) 
+                              << player.getName() << ConsoleUtils::RESET_COLOR;
+                    if (i < winners.size() - 1) std::cout << ", ";
+                    break;
+                }
+            }
+        }
+        std::cout << " <<<" << std::endl;
     }
 }
