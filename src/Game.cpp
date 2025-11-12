@@ -278,6 +278,17 @@ void Game::handlePlayerTurn(Player& player) {
 
             int boardSize = board.getSize();
             std::set<Position> checkedBonuses;
+            std::set<Position> coveredBonuses;
+            
+            // Marquer les bonus directement couverts par les tuiles (ils sont perdus)
+            for (const auto& tilePos : placedPositions) {
+                if (board.isBonusSquare(tilePos.row, tilePos.col)) {
+                    coveredBonuses.insert(tilePos);
+                }
+            }
+            
+            // Vérifier les bonus autour des tuiles placées (4 directions cardinales)
+            // Un bonus est capturé si les 4 cases autour sont remplies par le joueur
             for (const auto& tilePos : placedPositions) {
                 int offsets[4][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
                 for (int i = 0; i < 4; ++i) {
@@ -285,10 +296,15 @@ void Game::handlePlayerTurn(Player& player) {
                     int nc = tilePos.col + offsets[i][1];
                     if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
                         Position bonusPos(nr, nc);
+                        // Ignorer les bonus déjà couverts ou déjà vérifiés
+                        if (coveredBonuses.find(bonusPos) != coveredBonuses.end()) {
+                            continue;
+                        }
                         if (checkedBonuses.find(bonusPos) == checkedBonuses.end() && 
                             board.isBonusSquare(nr, nc)) {
                             checkedBonuses.insert(bonusPos);
                             if (board.checkBonusCapture(nr, nc, player.getId())) {
+                                board.claimBonusSquare(nr, nc, player.getId());
                                 bonusManager.processBonusCapture(nr, nc, player.getId(), player, players);
                             }
                         }

@@ -33,6 +33,7 @@ void Board::placeTile(const Tile& tile, Position pos, int playerId) {
             int rr = pos.row + r;
             int cc = pos.col + c;
             if (rr >= 0 && rr < size && cc >= 0 && cc < size) {
+                // Si on couvre un bonus directement, il est perdu
                 if (bonusGrid[rr][cc]) {
                     bonusGrid[rr][cc] = false;
                 }
