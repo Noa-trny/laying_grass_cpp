@@ -57,6 +57,7 @@ void BonusManager::processBonusCapture(int row, int col, int playerId, Player& p
     
     BonusType type = board->getBonusType(row, col);
     board->claimBonusSquare(row, col, playerId);
+    player.addGrassSquares(1);
     Position bonusPos(row, col);
     
     switch (type) {

@@ -48,6 +48,7 @@ public:
     
     bool checkBonusCapture(int row, int col, int playerId);
     void claimBonusSquare(int row, int col, int playerId);
+    void setBonusSquare(Position pos, BonusType type);
 };
 
 #endif
