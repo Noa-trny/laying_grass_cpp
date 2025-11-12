@@ -1,161 +1,106 @@
 # Notes d'Implémentation
 
-## Défis Techniques Principaux
+## 1. Chargement des données
 
-### 1. Génération des 96 Tuiles
-**Problème** : Créer 96 types de tuiles uniques
+- **Tiles** : `TileParser::loadTilesFromJson()` parcourt `data/tiles.json` sans dépendance externe.
+- **Constantes** : `Constants.hpp` définit les bornes (joueurs, tailles de grille) et le ratio de tuiles par joueur (`10.67`).
 
-**Solution** :
-- Définir des patterns de base (shapes)
-- Générer automatiquement toutes les orientations
-- Utiliser un système d'ID unique pour éviter les doublons
-- Stocker les tuiles dans un fichier de configuration ou générer algorithmiquement
+## 2. Structures principales
 
-**Implémentation suggérée** :
-```cpp
-class TileGenerator {
-    static std::vector<Tile> generateAllTiles() {
-        // Patterns de base
-        // Génération des variantes
-        // Retour de 96 tuiles uniques
-    }
-};
+### Board
+- `grid` (`int`) : propriétaire de chaque case, `0` = vide.
+- `bonusGrid`, `bonusTypes` : cases bonus et type affecté.
+- `stoneGrid` : cases occupées par une pierre.
+- `playerTerritories` : ensemble ordonné des positions contrôlées.
+- Helpers : `isInside`, `isOwnedBy`, `claimBonusSquare`.
+
+### Player
+- Identité, couleur (nom + code ANSI), coupons disponibles.
+- `grassSquaresOwned` suit le nombre exact de cases contrôlées (utilisé pour le tiebreaker).
+
+### Queue
+- Sélectionne un sous-ensemble unique des 96 tuiles.
+- Nombre calculé = `round(numPlayers * ratio)` mais au moins `9 * numPlayers`.
+- `exchangeQueue` conserve les tuiles utilisées pour l’échange afin de les réinsérer dans l’ordre.
+
+## 3. Boucle de jeu (`Game`)
+
+1. **Initialisation**
+   - Saisie noms + couleurs (`InputHandler::chooseColor`).
+   - Mélange de l’ordre de jeu (Mersenne Twister).
+   - Placement interactif des tuiles de départ.
+   - Calcul des tours max (min(9, totalTiles / joueurs)).
+
+2. **Tour**
+   - Menu : tirer, échanger, retirer pierre.
+   - Gestion coupons dans `Player`.
+   - Transformations sur la tuile choisie.
+   - Validation via `Validator::isValidPlacement`.
+   - Mise à jour du territoire et détection bonus.
+
+3. **Phase finale**
+   - Achat de tuiles 1×1, validation via le même moteur.
+   - Déterminer gagnant : `Algorithms::findLargestSquare`, puis `grassSquaresOwned`.
+
+## 4. Validation des règles
+
+`Validator` encapsule la logique :
+- `isWithinBounds` : limites plateau.
+- `noOverlap` : aucune case occupée (hors joueur).
+- `noStoneConflict` : aucune pierre sous la tuile.
+- `noEnemyContact` : pas de contact orthogonal avec un autre joueur.
+- `touchesTerritory` : continuité du territoire quand `isFirstTile == false`.
+
+Les règles de base (`Board::canPlaceTile`) ne vérifient que les contraintes physiques ; `Validator` ajoute les règles de gameplay.
+
+## 5. Bonus
+
+- Distribution pseudo-aléatoire (évitant bords et clusters).
+- Capture : `Board::checkBonusCapture` vérifie les quatre directions.
+- Application : `BonusManager::processBonusCapture` déclenche l’effet et revendique la case bonus.
+  - Échange : +1 coupon.
+  - Pierre : placement interactif, contrôle de validité.
+  - Vol : sélection d’une case adverse disponible (1 case transférée).
+
+## 6. Interface et saisie
+
+- `InputHandler` accepte lettres ou chiffres (colonne AA == 27).
+- Ré-affichage après actions pour limiter le “ghosting” CLI.
+- Les couleurs sont stockées dans `ConsoleUtils::colorOptions`.
+
+## 7. Points techniques spécifiques
+
+- **Rotation/miroirs** : `Tile` calcule directement les matrices transformées.
+- **Recherche du plus grand carré** : `Algorithms::findLargestSquare` (DP classique).
+- **Territoire** : `Board::addTerritory/removeTerritory` maintient la cohérence pour bonus et scoring.
+- **Défausse** : les tuiles abandonnées ne sont pas remises dans la file (conformément à la règle).
+- **Retrait pierre** : nécessite un coupon et actualise l’affichage du tour.
+
+## 8. Limites et TODO connus
+
+- Vol de tuile : transfert case par case (pas de reconstruction d’une tuile multi-case).
+- Pas de persistance de partie.
+- Pas de tests unitaires automatisés intégrés (prévoir `CTest` ou `Catch2`).
+
+## 9. Conseils de maintenance
+
+- Centraliser les messages d’erreur dans `InputHandler` pour homogénéiser l’UX.
+- Ajouter des tests sur `Validator` (placements limites, adjacency).
+- Envisager de sérialiser l’état pour rejouer une partie (fichier JSON).
+- Documenter `tiles.json` si de nouvelles formes sont ajoutées.
+
+## 10. Commandes de développement
+
+```bash
+# Build complet
+cmake -S . -B build
+cmake --build build --config Release
+
+# Exécution
+./build/laying_grass
+
+# Nettoyage
+cmake --build build --target clean
 ```
 
-### 2. Détection du Plus Grand Carré
-**Problème** : Le carré peut ne pas être contigu dans un territoire complexe
-
-**Solution** :
-- Algorithme Dynamic Programming classique pour trouver tous les carrés possibles
-- Filtrer pour ne garder que ceux entièrement dans le territoire
-- Gérer le cas où le territoire n'est pas rectangulaire
-
-**Attention** : Le carré doit être composé uniquement de cellules du territoire.
-
-### 3. Gestion de la Queue avec Échange
-**Problème** : Les tuiles échangées doivent revenir dans la queue après épuisement
-
-**Solution** :
-```cpp
-class Queue {
-    std::vector<Tile> mainQueue;
-    std::vector<Tile> exchangeQueue;  // Tuiles échangées
-    size_t currentIndex;
-    
-    Tile getNext() {
-        if (currentIndex >= mainQueue.size()) {
-            // Recycler exchangeQueue dans mainQueue
-            mainQueue = exchangeQueue;
-            shuffle(mainQueue);
-            exchangeQueue.clear();
-            currentIndex = 0;
-        }
-        return mainQueue[currentIndex++];
-    }
-};
-```
-
-### 4. Validation de Connectivité
-**Problème** : Vérifier qu'une tuile touche bien le territoire connecté
-
-**Solution** :
-- Utiliser BFS depuis la tuile de départ
-- Vérifier qu'au moins une cellule de la nouvelle tuile est adjacente à une cellule du territoire
-- Adjacence = même ligne/colonne (pas diagonale)
-
-### 5. Détection de Capture de Bonus
-**Problème** : Bonus activé quand tuile placée sur les 4 directions cardinales
-
-**Solution** :
-```cpp
-bool checkBonusCapture(int row, int col) {
-    // Vérifier Nord, Sud, Est, Ouest
-    bool north = hasPlayerTile(row-1, col, playerId);
-    bool south = hasPlayerTile(row+1, col, playerId);
-    bool east = hasPlayerTile(row, col+1, playerId);
-    bool west = hasPlayerTile(row, col-1, playerId);
-    
-    return north && south && east && west;
-}
-```
-
-### 6. Gestion des Pierres (Stones)
-**Problème** : Les pierres bloquent les placements mais peuvent être retirées avec un coupon
-
-**Solution** :
-- `stoneGrid[row][col] = true` pour marquer une pierre
-- Dans `canPlaceTile()`, vérifier `!stoneGrid[r][c]`
-- Méthode `removeStone()` qui consomme un coupon
-
-### 7. Achat de Tuiles 1×1
-**Problème** : Après les 9 rounds, permettre l'achat de tuiles 1×1
-
-**Solution** :
-- Créer une tuile spéciale 1×1 (une seule cellule true)
-- Menu d'achat dans `Game::purchaseSmallTiles()`
-- Utiliser des coupons comme monnaie (ou système séparé)
-
-## Choix de Design
-
-### Structure de Données pour la Grille
-**Choix** : `std::vector<std::vector<int>>` où valeur = ID joueur (0 = vide)
-
-**Avantages** :
-- Accès O(1)
-- Simple à implémenter
-- Facile à visualiser
-
-**Alternative** : `std::map<Position, int>` pour grilles creuses (non nécessaire ici)
-
-### Représentation des Tuiles
-**Choix** : `std::vector<std::vector<bool>>` pour la forme
-
-**Avantages** :
-- Flexible (tuiles de différentes tailles)
-- Facile à transformer (rotation/flip)
-- Simple à comparer
-
-### Territoire des Joueurs
-**Choix** : `std::map<int, std::set<Position>>`
-
-**Avantages** :
-- Recherche rapide O(log n)
-- Pas de doublons
-- Facile à itérer
-
-**Alternative** : `std::map<int, std::vector<Position>>` (plus simple mais avec doublons possibles)
-
-## Optimisations Possibles
-
-1. **Cache des Orientations** : Pré-calculer toutes les orientations au chargement
-2. **Bitmask pour Tuiles** : Utiliser bits au lieu de bool pour performance
-3. **Spatial Indexing** : Pour validation rapide des chevauchements
-4. **Memoization DP** : Cache des résultats de findLargestSquare()
-
-## Tests Critiques
-
-1. **Test Placement Première Tuile** : Doit toucher startPosition
-2. **Test Placement Suivante** : Doit toucher territoire
-3. **Test Chevauchenent** : Doit échouer si overlap
-4. **Test Contact Ennemi** : Doit échouer si touche ennemi
-5. **Test Connectivité** : Territoire doit rester connecté
-6. **Test Queue Échange** : Tuiles échangées reviennent après
-7. **Test Bonus Capture** : Activation sur 4 directions
-8. **Test Plus Grand Carré** : Cas simples et complexes
-9. **Test Tiebreaker** : Comptage correct des tuiles d'herbe
-
-## Gestion des Erreurs
-
-- **Placement Invalide** : Retourner false, skip le tour
-- **Tuile Indisponible** : Gérer fin de queue
-- **Input Invalide** : Boucle de saisie jusqu'à valide
-- **Exception** : Try-catch dans main.cpp
-
-## Performance Attendue
-
-- **Initialisation** : < 1 seconde
-- **Validation Placement** : < 10ms
-- **Détection Plus Grand Carré** : < 100ms pour grille 30×30
-- **Rendu CLI** : < 50ms
-- **Tour Complet** : < 1 seconde (avec input)
 
