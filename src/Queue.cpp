@@ -4,9 +4,10 @@
 #include <algorithm>
 #include <random>
 #include <filesystem>
+#include <cmath>
 
 Queue::Queue(int numPlayers_)
-    : currentIndex(0), totalTiles(TILES_PER_PLAYER * numPlayers_), numPlayers(numPlayers_) {
+    : currentIndex(0), totalTiles(0), numPlayers(numPlayers_) {
     initializeQueue();
 }
 
@@ -14,7 +15,7 @@ void Queue::initializeQueue() {
     mainQueue.clear();
     exchangeQueue.clear();
     currentIndex = 0;
-    
+
     std::vector<Tile> allTiles;
     std::vector<std::string> candidates = {
         "data/tiles.json",
@@ -36,20 +37,19 @@ void Queue::initializeQueue() {
     if (allTiles.empty()) {
         allTiles.emplace_back(0, std::vector<std::vector<bool>>{{true}});
     }
-    
-    int tilesNeeded = TILES_PER_PLAYER * numPlayers;
-    while (static_cast<int>(mainQueue.size()) < tilesNeeded && !allTiles.empty()) {
-        for (const auto& tile : allTiles) {
-            if (static_cast<int>(mainQueue.size()) >= tilesNeeded) break;
-            mainQueue.push_back(tile);
-        }
-    }
-    
-    if (static_cast<int>(mainQueue.size()) > tilesNeeded) {
-        mainQueue.resize(tilesNeeded);
-    }
-    
-    shuffleQueue();
+
+    const int maxAvailable = static_cast<int>(allTiles.size());
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(allTiles.begin(), allTiles.end(), g);
+
+    int tilesNeeded = static_cast<int>(std::round(TILES_PER_PLAYER_RATIO * static_cast<double>(numPlayers)));
+    int minimumRequired = 9 * numPlayers;
+    tilesNeeded = std::max(minimumRequired, tilesNeeded);
+    tilesNeeded = std::max(1, std::min(tilesNeeded, maxAvailable));
+
+    mainQueue.assign(allTiles.begin(), allTiles.begin() + tilesNeeded);
+    totalTiles = static_cast<int>(mainQueue.size());
 }
 
 void Queue::shuffleQueue() {
@@ -58,7 +58,7 @@ void Queue::shuffleQueue() {
     std::shuffle(mainQueue.begin(), mainQueue.end(), g);
 }
 
-bool Queue::hasNext() const { 
+bool Queue::hasNext() const {
     return currentIndex < mainQueue.size() || !exchangeQueue.empty();
 }
 
@@ -116,5 +116,9 @@ void Queue::returnToQueue(const Tile& tile) {
 
 int Queue::getRemainingCount() const {
     return static_cast<int>(mainQueue.size() - currentIndex) + static_cast<int>(exchangeQueue.size());
+}
+
+int Queue::getTotalTiles() const {
+    return totalTiles;
 }
 

@@ -12,7 +12,7 @@ private:
     int height;
     
 public:
-    Tile(); // Default constructor added
+    Tile(); // Constructeur par défaut ajouté
     Tile(int id, const std::vector<std::vector<bool>>& shape);
     
     int getId() const;

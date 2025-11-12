@@ -1,6 +1,7 @@
 #include "../include/Validator.hpp"
 #include "../include/Algorithms.hpp"
 #include <algorithm>
+#include <cmath>
 
 Validator::Validator(Board* board_) : board(board_) {}
 
@@ -58,7 +59,7 @@ bool Validator::touchesTerritory(const Tile& tile, Position pos, int playerId) c
             if (shape[r][c]) {
                 Position tilePos(pos.row + r, pos.col + c);
                 for (const auto& terrPos : territory) {
-                    int dist = std::abs(tilePos.row - terrPos.row) + std::abs(tilePos.col - terrPos.col);
+                int dist = std::abs(tilePos.row - terrPos.row) + std::abs(tilePos.col - terrPos.col);
                     if (dist == 1) return true;
                 }
             }
@@ -75,7 +76,7 @@ bool Validator::noOverlap(const Tile& tile, Position pos, int playerId) const {
                 int rr = pos.row + r;
                 int cc = pos.col + c;
                 int cell = board->getCell(rr, cc);
-                if (cell != 0 && cell != playerId) return false;
+                if (cell != 0) return false;
             }
         }
     }

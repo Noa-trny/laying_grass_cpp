@@ -39,7 +39,7 @@ Tile Tile::rotate180() const {
 
 Tile Tile::rotate270() const {
     if (shape.empty()) return *this;
-    // rotate 270 is rotate90 three times, but implement directly
+    // La rotation de 270° équivaut à trois rotations de 90°, mais est implémentée directement ici.
     int h = static_cast<int>(shape.size());
     int w = static_cast<int>(shape[0].size());
     std::vector<std::vector<bool>> s(w, std::vector<bool>(h, false));

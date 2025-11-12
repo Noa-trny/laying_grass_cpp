@@ -51,31 +51,54 @@ int readBoundedInt(int minValue, int maxValue) {
         return value;
     }
 }
+
+int parseCoordinateToken(const std::string& token, int maxValue) {
+    if (token.empty()) return -1;
+
+    bool allDigits = std::all_of(token.begin(), token.end(), [](unsigned char ch) {
+        return std::isdigit(ch) != 0;
+    });
+
+    if (allDigits) {
+        int value = std::stoi(token);
+        if (value >= 1 && value <= maxValue) {
+            return value - 1;
+        }
+        return -1;
+    }
+
+    bool allLetters = std::all_of(token.begin(), token.end(), [](unsigned char ch) {
+        return std::isalpha(ch) != 0;
+    });
+    if (!allLetters) return -1;
+
+    int index = 0;
+    for (char ch : token) {
+        char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        index = index * 26 + (upper - 'A' + 1);
+    }
+    if (index < 1 || index > maxValue) return -1;
+    return index - 1;
 }
 
-Position InputHandler::getTilePosition() {
+int readCoordinate(const std::string& prompt, int maxValue) {
     while (true) {
-        std::cout << "Ligne (A-Z): ";
+        std::cout << prompt;
         std::string line = trim(readLineOrThrow());
         if (line.empty()) continue;
-        char rch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
-        if (rch < 'A' || rch > 'Z') {
-            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
-            continue;
+        int coord = parseCoordinateToken(line, maxValue);
+        if (coord >= 0) {
+            return coord;
         }
-        int row = rch - 'A';
-
-        std::cout << "Colonne (A-Z): ";
-        line = trim(readLineOrThrow());
-        if (line.empty()) continue;
-        char cch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
-        if (cch < 'A' || cch > 'Z') {
-            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
-            continue;
-        }
-        int col = cch - 'A';
-        return Position{row, col};
+        std::cout << "Entree invalide. Utiliser des lettres (A, B, ... ou AA) ou un nombre entre 1 et " << maxValue << "." << '\n';
     }
+}
+}
+
+Position InputHandler::getTilePosition(int boardSize) {
+    int row = readCoordinate("Ligne (lettres ou chiffres) : ", boardSize);
+    int col = readCoordinate("Colonne (lettres ou chiffres) : ", boardSize);
+    return Position{row, col};
 }
 
 int InputHandler::getTileOrientation(const Tile&) {
@@ -142,29 +165,10 @@ int InputHandler::getMenuChoice(const std::vector<std::string>& options) {
     }
 }
 
-Position InputHandler::getStonePosition() {
-    while (true) {
-        std::cout << "Ligne de la pierre (A-Z): ";
-        std::string line = trim(readLineOrThrow());
-        if (line.empty()) continue;
-        char rch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
-        if (rch < 'A' || rch > 'Z') {
-            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
-            continue;
-        }
-        int row = rch - 'A';
-
-        std::cout << "Colonne de la pierre (A-Z): ";
-        line = trim(readLineOrThrow());
-        if (line.empty()) continue;
-        char cch = static_cast<char>(std::toupper(static_cast<unsigned char>(line.front())));
-        if (cch < 'A' || cch > 'Z') {
-            std::cout << "Entree invalide. Saisir une lettre entre A et Z." << '\n';
-            continue;
-        }
-        int col = cch - 'A';
-        return Position{row, col};
-    }
+Position InputHandler::getStonePosition(int boardSize) {
+    int row = readCoordinate("Ligne de la pierre : ", boardSize);
+    int col = readCoordinate("Colonne de la pierre : ", boardSize);
+    return Position{row, col};
 }
 
 int InputHandler::getRobberyTarget(const std::vector<int>& availablePlayers) {
@@ -188,4 +192,14 @@ std::string InputHandler::getPlayerName(int playerId) {
 int InputHandler::getPlayerCount() {
     std::cout << "Nombre de joueurs (" << MIN_PLAYERS << "-" << MAX_PLAYERS << "): ";
     return readBoundedInt(MIN_PLAYERS, MAX_PLAYERS);
+}
+
+int InputHandler::chooseColor(const std::vector<std::string>& colorNames) {
+    if (colorNames.empty()) return -1;
+    std::cout << "Choisir une couleur :" << std::endl;
+    for (size_t i = 0; i < colorNames.size(); ++i) {
+        std::cout << i + 1 << ". " << colorNames[i] << std::endl;
+    }
+    std::cout << "Choix: ";
+    return readBoundedInt(1, static_cast<int>(colorNames.size())) - 1;
 }

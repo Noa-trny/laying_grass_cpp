@@ -16,7 +16,8 @@ private:
     std::vector<std::vector<BonusType>> bonusTypes;
     std::vector<std::vector<bool>> stoneGrid;
     std::map<int, std::set<Position>> playerTerritories;
-    
+    bool isInside(int row, int col) const;
+
 public:
     Board(int numPlayers);
     
@@ -25,6 +26,8 @@ public:
     bool isBonusSquare(int row, int col) const;
     BonusType getBonusType(int row, int col) const;
     bool hasStone(int row, int col) const;
+    bool isInside(Position pos) const;
+    bool isOwnedBy(int row, int col, int playerId) const;
     
     void placeTile(const Tile& tile, Position pos, int playerId);
     void setCell(int row, int col, int playerId);
@@ -44,6 +47,7 @@ public:
     void initializeBonusSquares(int numPlayers);
     
     bool checkBonusCapture(int row, int col, int playerId);
+    void claimBonusSquare(int row, int col, int playerId);
 };
 
 #endif

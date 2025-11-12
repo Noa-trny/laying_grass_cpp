@@ -21,10 +21,17 @@ Game::Game(int numPlayers)
       currentRound(0),
       currentPlayerIndex(0),
       running(true),
-      gameFinished(false) {
+      gameFinished(false),
+      maxRounds(0) {
     initializePlayers(numPlayers);
     board.initializeBonusSquares(numPlayers);
     initializeStartingTiles();
+    int totalTiles = tileQueue.getTotalTiles();
+    if (players.empty()) {
+        maxRounds = 0;
+    } else {
+        maxRounds = std::min(9, std::max(1, totalTiles / static_cast<int>(players.size())));
+    }
 #ifdef _WIN32
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
@@ -42,52 +49,85 @@ void Game::initializePlayers(int numPlayers) {
     }
     players.clear();
     players.reserve(numPlayers);
+    const auto& colorChoices = ConsoleUtils::colorOptions();
+    std::vector<bool> colorUsed(colorChoices.size(), false);
+
     for (int i = 0; i < numPlayers; ++i) {
         std::string name = InputHandler::getPlayerName(i + 1);
         if (name.empty()) {
             name = "Joueur " + std::to_string(i + 1);
         }
-        players.emplace_back(i + 1, name, Position{0, 0});
-        players[i].addExchangeCoupon();
+
+        std::vector<std::string> availableNames;
+        std::vector<int> availableIndices;
+        for (size_t idx = 0; idx < colorChoices.size(); ++idx) {
+            if (!colorUsed[idx]) {
+                availableNames.push_back(colorChoices[idx].first);
+                availableIndices.push_back(static_cast<int>(idx));
+            }
+        }
+
+        int chosenIndex = 0;
+        if (!availableIndices.empty()) {
+            int selection = InputHandler::chooseColor(availableNames);
+            chosenIndex = availableIndices[selection];
+            colorUsed[chosenIndex] = true;
+        } else {
+            chosenIndex = i % static_cast<int>(colorChoices.size());
+        }
+
+        Player player(i + 1, name, Position{0, 0});
+        player.setColor(colorChoices[chosenIndex].first, colorChoices[chosenIndex].second);
+        player.addExchangeCoupon();
+        players.push_back(player);
+        ConsoleUtils::setPlayerColor(player.getId(), colorChoices[chosenIndex].second);
     }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(players.begin(), players.end(), gen);
+    currentPlayerIndex = 0;
+
+    std::cout << "Ordre de jeu initialise: ";
+    for (size_t i = 0; i < players.size(); ++i) {
+        std::cout << players[i].getName();
+        if (i + 1 < players.size()) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << std::endl;
 }
 
 void Game::initializeStartingTiles() {
-    int size = board.getSize();
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(2, size - 3);
-    
-    std::vector<Position> usedPositions;
-    
+    ConsoleUtils::clearConsole();
+    std::cout << "=== Placement des tuiles de depart ===" << std::endl;
+    Tile startingTile(0, std::vector<std::vector<bool>>{{true}});
+
     for (auto& player : players) {
-        Position startPos;
-        bool valid = false;
-        int attempts = 0;
-        
-        while (!valid && attempts < 100) {
-            startPos = Position(dis(gen), dis(gen));
-            valid = true;
-            
-            for (const auto& used : usedPositions) {
-                int dist = std::abs(startPos.row - used.row) + std::abs(startPos.col - used.col);
-                if (dist < 5) {
-                    valid = false;
-                    break;
-                }
+        bool placed = false;
+        while (!placed) {
+            showBoard();
+            std::cout << "Joueur " << player.getId() << " - " << ConsoleUtils::colorForPlayer(player.getId())
+                      << player.getName() << ConsoleUtils::RESET_COLOR << ", choisissez une case de depart." << std::endl;
+            Position pos = InputHandler::getTilePosition(board.getSize());
+            if (!board.isInside(pos)) {
+                std::cout << "Position hors du plateau." << std::endl;
+                continue;
             }
-            attempts++;
-        }
-        
-        if (valid) {
-            player.setStartPosition(startPos);
-            Tile startingTile(0, std::vector<std::vector<bool>>{{true}});
-            board.placeTile(startingTile, startPos, player.getId());
-            board.addTerritory(player.getId(), startPos);
-            player.incrementGrassTiles();
-            usedPositions.push_back(startPos);
+            if (board.getCell(pos.row, pos.col) != 0 || board.hasStone(pos.row, pos.col)) {
+                std::cout << "Case deja occupee." << std::endl;
+                continue;
+            }
+            board.placeTile(startingTile, pos, player.getId());
+            board.addTerritory(player.getId(), pos);
+            player.setStartPosition(pos);
+            player.addGrassSquares(1);
+            placed = true;
+            ConsoleUtils::clearConsole();
         }
     }
+    showBoard();
+    std::cout << "Tuiles de depart placees. Lancement de la partie..." << std::endl;
 }
 
 void Game::handlePlayerTurn(Player& player) {
@@ -102,20 +142,31 @@ void Game::handlePlayerTurn(Player& player) {
     showPlayers();
     std::cout << "Tuiles restantes dans la file: " << tileQueue.getRemainingCount() << std::endl;
 
-    std::vector<std::string> options = {"Prendre la tuile suivante", "Echanger la tuile"};
-    if (player.getExchangeCoupons() == 0) {
-        options = {"Prendre la tuile suivante"};
-    }
-
-    int choice = InputHandler::getMenuChoice(options);
     Tile currentTile;
+    bool tileReady = false;
+    while (!tileReady) {
+        std::vector<std::string> options;
+        options.push_back("Prendre la tuile suivante");
+        int exchangeIndex = -1;
+        int removeStoneIndex = -1;
+        if (player.getExchangeCoupons() > 0) {
+            exchangeIndex = static_cast<int>(options.size());
+            options.push_back("Echanger contre les 5 prochaines tuiles (1 coupon)");
+            removeStoneIndex = static_cast<int>(options.size());
+            options.push_back("Retirer une pierre (1 coupon)");
+        }
 
-    if (choice == 2 && player.getExchangeCoupons() > 0) {
-        std::vector<Tile> preview = tileQueue.peekNext(EXCHANGE_PREVIEW_SIZE);
-        if (preview.empty()) {
-            std::cout << "Pas assez de tuiles pour l'echange." << std::endl;
+        int choice = InputHandler::getMenuChoice(options) - 1;
+
+        if (choice == 0) {
             currentTile = tileQueue.getNext();
-        } else {
+            tileReady = true;
+        } else if (exchangeIndex != -1 && choice == exchangeIndex) {
+            std::vector<Tile> preview = tileQueue.peekNext(EXCHANGE_PREVIEW_SIZE);
+            if (preview.empty()) {
+                std::cout << "Pas assez de tuiles pour l'echange." << std::endl;
+                continue;
+            }
             std::cout << "Tuiles disponibles (choisir 1-" << preview.size() << "):" << std::endl;
             std::string col = ConsoleUtils::colorForPlayer(player.getId());
             for (size_t i = 0; i < preview.size(); ++i) {
@@ -126,12 +177,32 @@ void Game::handlePlayerTurn(Player& player) {
             if (sel >= 0 && sel < static_cast<int>(preview.size())) {
                 currentTile = tileQueue.exchangeTile(sel);
                 player.useExchangeCoupon();
+                tileReady = true;
             } else {
-                currentTile = tileQueue.getNext();
+                std::cout << "Selection invalide. Aucun echange effectue." << std::endl;
             }
+        } else if (removeStoneIndex != -1 && choice == removeStoneIndex) {
+            if (player.getExchangeCoupons() <= 0) {
+                std::cout << "Aucun coupon disponible." << std::endl;
+                continue;
+            }
+            Position stonePos = InputHandler::getStonePosition(board.getSize());
+            if (!board.hasStone(stonePos.row, stonePos.col)) {
+                std::cout << "Aucune pierre a cette position." << std::endl;
+                continue;
+            }
+            if (player.useExchangeCoupon()) {
+                board.removeStone(stonePos, true);
+                std::cout << "Pierre retiree." << std::endl;
+                ConsoleUtils::clearConsole();
+                showTurnIntro(player);
+                showBoard();
+                showPlayers();
+                std::cout << "Tuiles restantes dans la file: " << tileQueue.getRemainingCount() << std::endl;
+            }
+        } else {
+            std::cout << "Choix invalide." << std::endl;
         }
-    } else {
-        currentTile = tileQueue.getNext();
     }
 
     bool placed = false;
@@ -147,7 +218,13 @@ void Game::handlePlayerTurn(Player& player) {
         std::cout << "Tuile courante:" << std::endl;
         GameUtils::showTileConsoleColored(currentTile, col, ConsoleUtils::RESET_COLOR);
 
-        std::vector<std::string> tileOptions = {"Tourner (R)", "Retourner (F)", "Placer (P)", "Abandonner"};
+        std::vector<std::string> tileOptions = {
+            "Tourner la tuile",
+            "Retourner horizontalement",
+            "Retourner verticalement",
+            "Placer la tuile",
+            "Abandonner (defausser)"
+        };
         int tileChoice = InputHandler::getMenuChoice(tileOptions);
         
         Tile oriented = currentTile;
@@ -160,32 +237,32 @@ void Game::handlePlayerTurn(Player& player) {
             currentTile = oriented;
             continue;
         } else if (tileChoice == 2) {
-            oriented = currentTile.flipHorizontal();
-            currentTile = oriented;
+            currentTile = currentTile.flipHorizontal();
             continue;
-        } else if (tileChoice == 4) {
-            tileQueue.returnToQueue(currentTile);
+        } else if (tileChoice == 3) {
+            currentTile = currentTile.flipVertical();
+            continue;
+        } else if (tileChoice == 5) {
             tileDiscarded = true;
-            std::cout << "Tuile abandonnee." << std::endl;
+            std::cout << "Tuile abandonnee et retiree du jeu." << std::endl;
             break;
         }
 
-        Position candidate = InputHandler::getTilePosition();
+        Position candidate = InputHandler::getTilePosition(board.getSize());
         ConsoleUtils::clearConsole();
         showTurnIntro(player);
-        GameUtils::showBoardWithOverlay(board, oriented, candidate, col, ConsoleUtils::RESET_COLOR);
+        GameUtils::showBoardWithOverlay(board, currentTile, candidate, col, ConsoleUtils::RESET_COLOR);
         showPlayers();
 
         if (!InputHandler::confirmAction("Confirmer le placement ici ?")) {
             continue;
         }
 
-        bool isFirstTile = (player.getGrassTilesPlaced() == 1);
-        if (validator.isValidPlacement(oriented, candidate, player, isFirstTile)) {
-            board.placeTile(oriented, candidate, player.getId());
-            player.incrementGrassTiles();
+        bool isFirstTile = (player.getGrassSquaresOwned() == 1);
+        if (validator.isValidPlacement(currentTile, candidate, player, isFirstTile)) {
+            board.placeTile(currentTile, candidate, player.getId());
 
-            auto shape = oriented.getShape();
+            auto shape = currentTile.getShape();
             std::set<Position> placedPositions;
             for (int r = 0; r < static_cast<int>(shape.size()); ++r) {
                 for (int c = 0; c < static_cast<int>(shape[r].size()); ++c) {
@@ -197,6 +274,8 @@ void Game::handlePlayerTurn(Player& player) {
                 }
             }
             
+            player.addGrassSquares(static_cast<int>(placedPositions.size()));
+
             int boardSize = board.getSize();
             std::set<Position> checkedBonuses;
             for (const auto& tilePos : placedPositions) {
@@ -225,21 +304,20 @@ void Game::handlePlayerTurn(Player& player) {
             placed = true;
         } else {
             std::cout << "Placement invalide." << std::endl;
-            if (!validator.isWithinBounds(oriented, candidate)) {
+            if (!validator.isWithinBounds(currentTile, candidate)) {
                 std::cout << "Raison: La tuile depasse les limites du plateau." << std::endl;
-            } else if (!validator.noOverlap(oriented, candidate, player.getId())) {
+            } else if (!validator.noOverlap(currentTile, candidate, player.getId())) {
                 std::cout << "Raison: La tuile chevauche une autre tuile." << std::endl;
-            } else if (!validator.noStoneConflict(oriented, candidate)) {
+            } else if (!validator.noStoneConflict(currentTile, candidate)) {
                 std::cout << "Raison: La tuile chevauche une pierre." << std::endl;
-            } else if (!validator.noEnemyContact(oriented, candidate, player.getId())) {
+            } else if (!validator.noEnemyContact(currentTile, candidate, player.getId())) {
                 std::cout << "Raison: La tuile touche le territoire d'un autre joueur." << std::endl;
-            } else if (!validator.touchesTerritory(oriented, candidate, player.getId()) && !isFirstTile) {
+            } else if (!validator.touchesTerritory(currentTile, candidate, player.getId()) && !isFirstTile) {
                 std::cout << "Raison: La tuile ne touche pas votre territoire." << std::endl;
             } else if (isFirstTile) {
                 std::cout << "Raison: La tuile ne touche pas votre tuile de depart." << std::endl;
             }
             if (!InputHandler::confirmAction("Voulez-vous reessayer ?")) {
-                tileQueue.returnToQueue(currentTile);
                 tileDiscarded = true;
             }
         }
@@ -264,7 +342,7 @@ void Game::run() {
         return;
     }
 
-    while (running && currentRound < TILES_PER_PLAYER) {
+    while (running && tileQueue.hasNext() && currentRound < maxRounds) {
         Player& current = players[currentPlayerIndex];
         handlePlayerTurn(current);
         if (running) {
@@ -291,15 +369,16 @@ void Game::processFinalPhase() {
             while (player.getExchangeCoupons() > 0) {
                 if (InputHandler::confirmAction("Voulez-vous acheter une tuile 1x1 ?")) {
                     Tile smallTile(0, std::vector<std::vector<bool>>{{true}});
-                    Position pos = InputHandler::getTilePosition();
+                    Position pos = InputHandler::getTilePosition(board.getSize());
                     
-                    bool isFirstTile = (player.getGrassTilesPlaced() == 1);
+                    bool isFirstTile = (player.getGrassSquaresOwned() == 1);
                     if (validator.isValidPlacement(smallTile, pos, player, isFirstTile)) {
                         board.placeTile(smallTile, pos, player.getId());
                         board.addTerritory(player.getId(), pos);
-                        player.incrementGrassTiles();
-                        player.useExchangeCoupon();
-                        std::cout << "Tuile 1x1 placee." << std::endl;
+                        player.addGrassSquares(1);
+                        if (player.useExchangeCoupon()) {
+                            std::cout << "Tuile 1x1 placee." << std::endl;
+                        }
                     } else {
                         std::cout << "Placement invalide." << std::endl;
                         break;
@@ -328,14 +407,14 @@ void Game::determineWinner() const {
     }
     
     if (winners.empty() || maxSquareSize == 0) {
-        int maxTiles = 0;
+        int maxSquares = 0;
         winners.clear();
         for (const auto& player : players) {
-            if (player.getGrassTilesPlaced() > maxTiles) {
-                maxTiles = player.getGrassTilesPlaced();
+            if (player.getGrassSquaresOwned() > maxSquares) {
+                maxSquares = player.getGrassSquaresOwned();
                 winners.clear();
                 winners.push_back(player.getId());
-            } else if (player.getGrassTilesPlaced() == maxTiles) {
+            } else if (player.getGrassSquaresOwned() == maxSquares) {
                 winners.push_back(player.getId());
             }
         }
@@ -349,7 +428,7 @@ void Game::determineWinner() const {
         SquareResult result = Algorithms::findLargestSquare(board, player.getId());
         std::cout << ConsoleUtils::colorForPlayer(player.getId()) << player.getName() << ConsoleUtils::RESET_COLOR 
                   << " - Plus grand carre: " << result.size << "x" << result.size 
-                  << " | Tuiles totales: " << player.getGrassTilesPlaced() << std::endl;
+                  << " | Cases totales: " << player.getGrassSquaresOwned() << std::endl;
     }
     
     std::cout << std::endl;

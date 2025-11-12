@@ -23,6 +23,7 @@ private:
     int currentPlayerIndex;
     bool running;
     bool gameFinished;
+    int maxRounds;
 
     void initializePlayers(int numPlayers);
     void initializeStartingTiles();

@@ -1,17 +1,18 @@
 #include "../include/Game.hpp"
 #include "../include/GameUtils.hpp"
 #include "../include/ConsoleUtils.hpp"
-#include "../include/Constants.hpp"
 #include <iostream>
 
 void Game::showTurnIntro(const Player& player) const {
     std::cout << '\n';
     int roundNumber = currentRound + 1;
     int turnInRound = currentPlayerIndex + 1;
-    std::cout << "Round " << roundNumber << "/" << TILES_PER_PLAYER 
+    std::cout << "Round " << roundNumber << "/" << maxRounds
               << " | Tour " << turnInRound << "/" << static_cast<int>(players.size())
-              << " | Joueur " << player.getId() << " : " 
-              << ConsoleUtils::colorForPlayer(player.getId()) << player.getName() << ConsoleUtils::RESET_COLOR << '\n';
+              << " | Joueur " << player.getId() << " : "
+              << ConsoleUtils::colorForPlayer(player.getId()) << player.getName() << ConsoleUtils::RESET_COLOR
+              << " [" << player.getColorName() << "]"
+              << '\n';
 }
 
 void Game::showBoard() const {
@@ -62,15 +63,16 @@ void Game::showBoard() const {
 void Game::showPlayers() const {
     std::cout << "Participants:" << '\n';
     for (const auto& player : players) {
-        std::cout << ConsoleUtils::colorForPlayer(player.getId()) << "#" << player.getId() << " " << player.getName() << ConsoleUtils::RESET_COLOR 
-                  << " | Tuiles: " << player.getGrassTilesPlaced() 
+        std::cout << ConsoleUtils::colorForPlayer(player.getId()) << "#" << player.getId() << " " << player.getName() << ConsoleUtils::RESET_COLOR
+                  << " (" << player.getColorName() << ")"
+                  << " | Cases: " << player.getGrassSquaresOwned()
                   << " | Coupons: " << player.getExchangeCoupons() << '\n';
     }
 }
 
 void Game::showSummary() const {
     std::cout << '\n';
-    std::cout << "Fin de partie apres " << currentRound + 1 << " tours complets." << '\n';
+    std::cout << "Fin de partie apres " << currentRound << " tours complets (sur " << maxRounds << " prevus)." << '\n';
     showPlayers();
 }
 

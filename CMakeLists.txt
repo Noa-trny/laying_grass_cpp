@@ -15,7 +15,6 @@ file(GLOB_RECURSE HEADERS "${INCLUDE_DIR}/*.hpp")
 
 set(MAIN_APP ${SOURCE_DIR}/main.cpp)
 
-# Sources communs = tous les .cpp, en excluant les fichiers réseau et main.cpp
 set(SOURCES_COMMON ${ALL_CPP})
 list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)main(_client|_server)?\\.cpp$")
 list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)(Network|Client|Server|Protocol)\\.cpp$")

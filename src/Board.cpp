@@ -9,11 +9,19 @@ Board::Board(int numPlayers)
       bonusTypes(size, std::vector<BonusType>(size, BonusType::TILE_EXCHANGE)),
       stoneGrid(size, std::vector<bool>(size, false)) {}
 
+bool Board::isInside(int row, int col) const {
+    return row >= 0 && row < size && col >= 0 && col < size;
+}
+
 int Board::getSize() const { return size; }
-int Board::getCell(int row, int col) const { return (row>=0 && row<size && col>=0 && col<size) ? grid[row][col] : 0; }
-bool Board::isBonusSquare(int row, int col) const { return (row>=0 && row<size && col>=0 && col<size) ? bonusGrid[row][col] : false; }
+int Board::getCell(int row, int col) const { return isInside(row, col) ? grid[row][col] : 0; }
+bool Board::isBonusSquare(int row, int col) const { return isInside(row, col) ? bonusGrid[row][col] : false; }
 BonusType Board::getBonusType(int row, int col) const { return bonusTypes[row][col]; }
-bool Board::hasStone(int row, int col) const { return (row>=0 && row<size && col>=0 && col<size) ? stoneGrid[row][col] : false; }
+bool Board::hasStone(int row, int col) const { return isInside(row, col) ? stoneGrid[row][col] : false; }
+bool Board::isInside(Position pos) const { return isInside(pos.row, pos.col); }
+bool Board::isOwnedBy(int row, int col, int playerId) const {
+    return isInside(row, col) && grid[row][col] == playerId;
+}
 
 void Board::placeTile(const Tile& tile, Position pos, int playerId) {
     auto shape = tile.getShape();
@@ -260,4 +268,11 @@ bool Board::checkBonusCapture(int row, int col, int playerId) {
     }
     
     return allSurrounded;
+}
+
+void Board::claimBonusSquare(int row, int col, int playerId) {
+    if (!isInside(row, col)) return;
+    bonusGrid[row][col] = false;
+    grid[row][col] = playerId;
+    addTerritory(playerId, Position{row, col});
 }
