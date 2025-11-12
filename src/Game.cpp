@@ -23,15 +23,6 @@ Game::Game(int numPlayers)
       running(true),
       gameFinished(false),
       maxRounds(0) {
-    initializePlayers(numPlayers);
-    board.initializeBonusSquares(numPlayers);
-    initializeStartingTiles();
-    int totalTiles = tileQueue.getTotalTiles();
-    if (players.empty()) {
-        maxRounds = 0;
-    } else {
-        maxRounds = std::min(9, std::max(1, totalTiles / static_cast<int>(players.size())));
-    }
 #ifdef _WIN32
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
@@ -41,6 +32,15 @@ Game::Game(int numPlayers)
         }
     }
 #endif
+    initializePlayers(numPlayers);
+    board.initializeBonusSquares(numPlayers);
+    initializeStartingTiles();
+    int totalTiles = tileQueue.getTotalTiles();
+    if (players.empty()) {
+        maxRounds = 0;
+    } else {
+        maxRounds = std::min(9, std::max(1, totalTiles / static_cast<int>(players.size())));
+    }
 }
 
 void Game::initializePlayers(int numPlayers) {
