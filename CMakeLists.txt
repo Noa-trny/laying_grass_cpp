@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.10)
-project(LayingGrass)
+cmake_minimum_required(VERSION 3.16)
+project(LayingGrass LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,25 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SOURCE_DIR src)
 set(INCLUDE_DIR include)
 
-file(GLOB_RECURSE ALL_CPP "${SOURCE_DIR}/*.cpp")
-# S'assurer que TileParser.cpp et GameUtils.cpp sont inclus (peut être ajouté après création des fichiers)
-list(APPEND ALL_CPP "${SOURCE_DIR}/TileParser.cpp")
-list(APPEND ALL_CPP "${SOURCE_DIR}/GameUtils.cpp")
-# Nouveaux modules UI et Console
-list(APPEND ALL_CPP "${SOURCE_DIR}/GameUI.cpp")
-list(APPEND ALL_CPP "${SOURCE_DIR}/ConsoleUtils.cpp")
-file(GLOB_RECURSE HEADERS "${INCLUDE_DIR}/*.hpp")
+file(GLOB SRC_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
+set(MAIN_SOURCE "${SOURCE_DIR}/main.cpp")
 
-set(MAIN_APP ${SOURCE_DIR}/main.cpp)
+set(COMMON_SOURCES ${SRC_FILES})
+list(REMOVE_ITEM COMMON_SOURCES "${CMAKE_SOURCE_DIR}/${MAIN_SOURCE}")
 
-# Sources communs = tous les .cpp, en excluant les fichiers réseau et main.cpp
-set(SOURCES_COMMON ${ALL_CPP})
-list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)main(_client|_server)?\\.cpp$")
-list(FILTER SOURCES_COMMON EXCLUDE REGEX "(^|/|\\\\)(Network|Client|Server|Protocol)\\.cpp$")
+add_executable(LayingGrass ${COMMON_SOURCES} ${MAIN_SOURCE})
+target_include_directories(LayingGrass PUBLIC ${INCLUDE_DIR})
 
-# Définir la cible avec le point d'entrée main
-set(SOURCES_APP ${SOURCES_COMMON} ${MAIN_APP} ${HEADERS})
-
-add_executable(${PROJECT_NAME} ${SOURCES_APP})
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIR})
+add_executable(LayingGrass_tests ${COMMON_SOURCES} tests/bonus_tests.cpp)
+target_include_directories(LayingGrass_tests PUBLIC ${INCLUDE_DIR})

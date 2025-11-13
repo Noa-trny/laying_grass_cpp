@@ -192,7 +192,7 @@ void showTilesConsoleColored(const std::vector<Tile>& tiles, const std::string& 
     for (int r = 0; r < maxHeight; ++r) {
         for (int i = 0; i < count; ++i) {
             if (r < heights[i]) {
-                // print each char with color if '#'
+                // Afficher chaque caractère en couleur lorsqu'il représente une case occupée.
                 const std::string &line = rows[i][r];
                 for (char ch : line) {
                     if (ch == '#') std::cout << color << ch << reset;
@@ -282,7 +282,7 @@ void showTilesConsoleColored(const std::vector<Tile>& tiles, const std::string& 
 
 void showBoardWithOverlay(const Board& board, const Tile& tile, Position pos, const std::string& overlayColor, const std::string& reset) {
     int size = board.getSize();
-    // header letters
+    // Entête des colonnes.
     std::cout << "   ";
     for (int col = 0; col < size; ++col) {
         std::cout << static_cast<char>('A' + (col % 26));
@@ -296,7 +296,7 @@ void showBoardWithOverlay(const Board& board, const Tile& tile, Position pos, co
     for (int row = 0; row < size; ++row) {
         std::cout << static_cast<char>('A' + (row % 26)) << "  ";
         for (int col = 0; col < size; ++col) {
-            // check if overlay covers this cell
+            // Vérifier si la superposition couvre cette case.
             int tr = row - pos.row;
             int tc = col - pos.col;
             bool overlayCell = false;
@@ -317,4 +317,4 @@ void showBoardWithOverlay(const Board& board, const Tile& tile, Position pos, co
     }
 }
 
-} // namespace GameUtils
+} // espace de noms GameUtils

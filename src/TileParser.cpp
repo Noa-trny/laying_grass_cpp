@@ -93,5 +93,5 @@ std::vector<Tile> loadTilesFromJson(const std::string& filepath) {
     return result;
 }
 
-} // namespace TileParser
+} // espace de noms TileParser
 

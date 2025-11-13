@@ -28,6 +28,7 @@ public:
     void returnToQueue(const Tile& tile);
     
     int getRemainingCount() const;
+    int getTotalTiles() const;
 };
 
 #endif

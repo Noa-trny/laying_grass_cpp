@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-class Queue; // forward declaration
+class Queue; // déclaration anticipée
 
 class Display {
 public:

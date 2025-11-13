@@ -71,7 +71,10 @@ make
 
 ## 📚 Documentation
 
-Voir `docs/ARCHITECTURE.md` pour l'architecture détaillée.
+- [docs/USER_DOCUMENTATION.md](docs/USER_DOCUMENTATION.md) : prise en main et déroulement d’une partie via la CLI.
+- [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md) : architecture, décisions d’implémentation et détails techniques.
+- [docs/DESIGN.md](docs/DESIGN.md) : règles détaillées, cycle complet et bonus.
+- [docs/STRUCTURE.md](docs/STRUCTURE.md) : arborescence, dépendances entre modules et bonnes pratiques.
 
 ## 🎯 Fonctionnalités
 
@@ -82,6 +85,7 @@ Voir `docs/ARCHITECTURE.md` pour l'architecture détaillée.
 - [x] Détection du plus grand carré
 - [x] Cases bonus
 - [x] Interface CLI
+- [x] Tests unitaires
 
 ---
 

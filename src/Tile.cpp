@@ -1,5 +1,8 @@
 #include "../include/Tile.hpp"
 
+Tile::Tile()
+    : id(0), shape(), width(0), height(0) {}
+
 Tile::Tile(int id_, const std::vector<std::vector<bool>>& shape_)
     : id(id_), shape(shape_), width(shape_.empty() ? 0 : static_cast<int>(shape_[0].size())), height(static_cast<int>(shape_.size())) {}
 
@@ -36,7 +39,7 @@ Tile Tile::rotate180() const {
 
 Tile Tile::rotate270() const {
     if (shape.empty()) return *this;
-    // rotate 270 is rotate90 three times, but implement directly
+    // La rotation de 270° équivaut à trois rotations de 90°, mais est implémentée directement ici.
     int h = static_cast<int>(shape.size());
     int w = static_cast<int>(shape[0].size());
     std::vector<std::vector<bool>> s(w, std::vector<bool>(h, false));
