@@ -76,13 +76,12 @@ Voir `docs/ARCHITECTURE.md` pour l'architecture détaillée.
 ## 🎯 Fonctionnalités
 
 - [x] Architecture modulaire
-- [ ] Implémentation des tuiles (96 types)
-- [ ] Système de queue avec échange
-- [ ] Validation des placements
-- [ ] Détection du plus grand carré
-- [ ] Cases bonus
-- [ ] Interface CLI
-- [ ] Tests unitaires
+- [x] Implémentation des tuiles (96 types)
+- [x] Système de queue avec échange
+- [x] Validation des placements
+- [x] Détection du plus grand carré
+- [x] Cases bonus
+- [x] Interface CLI
 
 ---
 
