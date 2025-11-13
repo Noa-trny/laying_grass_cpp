@@ -85,7 +85,6 @@ make
 - [x] Détection du plus grand carré
 - [x] Cases bonus
 - [x] Interface CLI
-- [x] Tests unitaires
 
 ---
 
