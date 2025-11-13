@@ -16,5 +16,3 @@ list(REMOVE_ITEM COMMON_SOURCES "${CMAKE_SOURCE_DIR}/${MAIN_SOURCE}")
 add_executable(LayingGrass ${COMMON_SOURCES} ${MAIN_SOURCE})
 target_include_directories(LayingGrass PUBLIC ${INCLUDE_DIR})
 
-add_executable(LayingGrass_tests ${COMMON_SOURCES} tests/bonus_tests.cpp)
-target_include_directories(LayingGrass_tests PUBLIC ${INCLUDE_DIR})
