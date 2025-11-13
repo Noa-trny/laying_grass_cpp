@@ -1,6 +1,7 @@
 # Laying Grass Game - C++ Implementation
 
 Jeu de placement de tuiles inspiré de "The Devil's Plan" (Episode 8)
+
 Lien vers le repo : https://github.com/Noa-trny/laying_grass_cpp
 
 ## 🎮 Règles du Jeu
