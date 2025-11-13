@@ -1,145 +1,131 @@
-# Structure Complète du Projet
+# Structure du dépôt
 
-## Arborescence des Fichiers
+## 1. Arborescence
 
 ```
 laying_grass_cpp/
-│
-├── include/                      # En-têtes C++ (.hpp)
-│   ├── Constants.hpp             # Constantes du jeu
-│   ├── Position.hpp              # Structure Position
-│   ├── Tile.hpp                  # Classe Tile (96 types)
-│   ├── Board.hpp                 # Classe Board (grille)
-│   ├── Player.hpp                # Classe Player
-│   ├── Queue.hpp                 # File d'attente des tuiles
-│   ├── Game.hpp                  # Classe Game (logique principale)
-│   ├── Validator.hpp             # Validation des placements
-│   ├── Bonus.hpp                 # Gestion des bonus
-│   ├── Algorithms.hpp            # Algorithmes (carré, connectivité)
-│   ├── Display.hpp               # Affichage CLI
-│   └── InputHandler.hpp          # Gestion de l'input
-│
-├── src/                          # Sources C++ (.cpp)
-│   ├── main.cpp                  # Point d'entrée
-│   ├── Tile.cpp                  # Implémentation Tile
-│   ├── Board.cpp                 # Implémentation Board
-│   ├── Player.cpp                # Implémentation Player
-│   ├── Queue.cpp                 # Implémentation Queue
-│   ├── Game.cpp                  # Implémentation Game
-│   ├── Validator.cpp             # Implémentation Validator
-│   ├── Bonus.cpp                 # Implémentation Bonus
-│   ├── Algorithms.cpp            # Implémentation Algorithms
-│   ├── Display.cpp               # Implémentation Display
-│   └── InputHandler.cpp          # Implémentation InputHandler
-│
-├── docs/                         # Documentation
-│   ├── ARCHITECTURE.md           # Architecture détaillée
-│   ├── DESIGN.md                 # Design et algorithmes
-│   ├── STRUCTURE.md              # Ce fichier
-│   └── USER_GUIDE.md             # Guide utilisateur (à créer)
-│
-├── tests/                        # Tests unitaires
-│   ├── test_tile.cpp
-│   ├── test_board.cpp
-│   ├── test_queue.cpp
-│   ├── test_validator.cpp
-│   └── test_algorithms.cpp
-│
-├── CMakeLists.txt                # Configuration CMake
-├── Makefile                      # Configuration Make
-├── README.md                     # Documentation principale
-└── .gitignore                    # Fichiers à ignorer
+├── CMakeLists.txt             # Build principal (jeu + tests)
+├── Makefile                   # Build de secours
+├── README.md                  # Présentation rapide du projet
+├── data/
+│   └── tiles.json             # Définitions des 96 formes de tuiles
+├── docs/
+│   ├── DESIGN.md              # Design détaillé et algorithmes
+│   ├── STRUCTURE.md           # Présent document
+│   ├── USER_DOCUMENTATION.md  # Guide d’utilisation pour la CLI
+│   └── TECHNICAL_DOCUMENTATION.md # Choix d’implémentation et détails techniques
+├── include/                   # Interfaces publiques (headers)
+│   ├── Algorithms.hpp
+│   ├── Board.hpp
+│   ├── Bonus.hpp
+│   ├── ConsoleUtils.hpp
+│   ├── Constants.hpp
+│   ├── Game.hpp
+│   ├── GameUtils.hpp
+│   ├── InputHandler.hpp
+│   ├── Player.hpp
+│   ├── Position.hpp
+│   ├── Queue.hpp
+│   ├── Tile.hpp
+│   ├── TileParser.hpp
+│   └── Validator.hpp
+├── src/                       # Implémentations (.cpp)
+│   ├── Algorithms.cpp
+│   ├── Board.cpp
+│   ├── Bonus.cpp
+│   ├── ConsoleUtils.cpp
+│   ├── Game.cpp
+│   ├── GameUI.cpp             # Fonctions d’affichage/interaction
+│   ├── GameUtils.cpp
+│   ├── InputHandler.cpp
+│   ├── Queue.cpp
+│   ├── Tile.cpp
+│   ├── TileParser.cpp
+│   └── main.cpp
+└── tests/
+    └── bonus_tests.cpp        # Suite de tests (LayingGrass_tests)
 ```
 
-## Dépendances entre Modules
+Deux exécutables sont générés :
+
+- `LayingGrass` : jeu interactif.
+- `LayingGrass_tests` : tests unitaires (bonus). D’autres suites peuvent être ajoutées dans `tests/`.
+
+## 2. Dépendances entre modules
 
 ```
 main.cpp
-  └──> Game
-       ├──> Board
-       │    ├──> Position
-       │    ├──> Tile
-       │    └──> Constants
-       ├──> Player
-       │    └──> Position
-       ├──> Queue
-       │    └──> Tile
-       ├──> Validator
-       │    ├──> Board
-       │    ├──> Tile
-       │    └──> Player
-       ├──> BonusManager
-       │    ├──> Board
-       │    ├──> Player
-       │    └──> Constants
-       └──> Algorithms
-            └──> Board
+ └── Game
+     ├─ Board ──┬─ Tile
+     │          └─ Position
+     ├─ Queue ──┬─ Tile
+     │          └─ TileParser (JSON)
+     ├─ Player ─┬─ Position
+     ├─ Validator ──┬─ Board
+     │              └─ Player
+     ├─ BonusManager ──┬─ Board
+     │                 └─ Player
+     ├─ Algorithms ──┬─ Board
+     ├─ GameUtils / GameUI
+     ├─ InputHandler
+     └─ ConsoleUtils
 ```
 
-## Ordre de Développement Recommandé
+Les dépendances sont acycliques : `Game` reste l’orchestrateur unique. `Board`, `Queue`, `Validator` et `BonusManager` ne connaissent pas l’UI (tout passe par `Game`).
 
-### Phase 1 : Fondations
-1. ✅ **Constants.hpp** - Définir toutes les constantes
-2. ✅ **Position.hpp** - Structure de base
-3. **Tile.cpp** - Implémentation des tuiles et transformations
-4. **Board.cpp** - Grille et placement basique
+## 3. Description rapide des dossiers
 
-### Phase 2 : Système de Jeu
-5. **Player.cpp** - Gestion des joueurs
-6. **Queue.cpp** - File d'attente avec échange
-7. **Validator.cpp** - Validation des règles
+### include/ et src/
+- **Algorithms** : fonctions stateless (plus grand carré, connectivité).
+- **Board** : noyau de la mécanique de plateau ; assure la cohérence des grilles et expose des helpers pour les tests (ex. `setBonusSquare`).
+- **Bonus** : logique d’activation des bonus ; dépend de `InputHandler` pour les choix interactifs.
+- **ConsoleUtils** : effacement d’écran, couleurs ANSI (couplé à `GameUI`).
+- **Game** : boucle principale, gestion des tours, phase finale.
+- **GameUI / GameUtils** : rendu console, overlay, légende ; aucun état propre.
+- **InputHandler** : lecture et validation des entrées ; accepte lettres ou chiffres pour les coordonnées.
+- **Player** : état individuel (coupons, couleurs, nombre de cases).
+- **Queue** : file de tuiles avec mécanisme d’échange/recyclage.
+- **Tile** / **TileParser** : représentation des tuiles et chargement JSON.
+- **Validator** : règles métier de placement.
 
-### Phase 3 : Fonctionnalités Avancées
-8. **Algorithms.cpp** - Détection carré + connectivité
-9. **Bonus.cpp** - Système de bonus
-10. **Display.cpp** - Interface CLI
-11. **InputHandler.cpp** - Gestion input
+### docs/
+- Documentation fonctionnelle et technique. Chaque fichier est à jour et cohérent avec l’implémentation actuelle.
 
-### Phase 4 : Intégration
-12. **Game.cpp** - Boucle principale
-13. **main.cpp** - Point d'entrée complet
+### tests/
+- `bonus_tests.cpp` : couvre la capture de bonus (échange, pierre, vol). Les entrées sont simulées via redirection de `std::cin`.
+- Pour créer un nouveau test, ajouter un fichier dans `tests/` et lister l’exécutable dans `CMakeLists.txt`.
 
-### Phase 5 : Tests
-14. Tests unitaires pour chaque module
-15. Tests d'intégration
+## 4. Cibles CMake
 
-## Interfaces Publiques
+```cmake
+add_executable(LayingGrass         ${SOURCES_APP})
+add_executable(LayingGrass_tests   ${SOURCES_COMMON} tests/bonus_tests.cpp)
+```
 
-### Tile
-- `Tile(int id, shape)` - Constructeur
-- `rotate90/180/270()` - Rotations
-- `flipHorizontal/Vertical()` - Retournements
-- `getAllOrientations()` - Toutes les variantes
+- `SOURCES_COMMON` regroupe tous les `.cpp` (hors `main.cpp`).
+- Les tests réutilisent les mêmes modules métier ; l’UI n’est pas nécessaire.
+- Les commandes de compilation et d’exécution sont décrites dans le `README.md`.
 
-### Board
-- `placeTile(tile, pos, playerId)` - Placement
-- `canPlaceTile(tile, pos, playerId)` - Validation
-- `getTerritory(playerId)` - Territoire d'un joueur
-- `placeStone(pos)` / `removeStone(pos)` - Gestion pierres
+## 5. Répertoires générés (build)
 
-### Queue
-- `getNext()` - Prochaine tuile
-- `peekNext(count)` - Prévisualiser
-- `exchangeTile(index)` - Échanger
+Après compilation (via CMake en mode Debug), on obtient typiquement :
 
-### Validator
-- `isValidPlacement(tile, pos, player, isFirst)` - Validation complète
+```
+cmake-build-debug/
+├── CMakeCache.txt
+├── CMakeFiles/
+├── LayingGrass.exe
+├── LayingGrass_tests.exe
+└── ...
+```
 
-### Algorithms
-- `findLargestSquare(board, playerId)` - Plus grand carré
-- `isConnectedComponent(board, playerId, territory)` - Connectivité
+Ces répertoires sont ignorés par Git et peuvent être supprimés (`cmake --build build --target clean`).
 
-## Points de Configuration
+## 6. Bonnes pratiques
 
-### Dans Constants.hpp
-- `MIN_PLAYERS = 2`
-- `MAX_PLAYERS = 9`
-- `SMALL_GRID_SIZE = 20`
-- `LARGE_GRID_SIZE = 30`
-- `TOTAL_TILE_TYPES = 96`
-- `EXCHANGE_PREVIEW_SIZE = 5`
+- Chaque module possède son header et son implémentation. Ajouter une fonctionnalité implique de modifier l’un de ces couples.
+- Les scripts CLI (`InputHandler`, `ConsoleUtils`) ne doivent pas contenir de logique métier (pour faciliter d’éventuelles évolutions vers une GUI).
+- Les tests doivent manipuler `Board`, `Player`, `BonusManager`, `Queue`, etc. directement. Préférer le redirigement de `std::cin` pour simuler les choix utilisateur lorsqu’on dépend d’`InputHandler`.
 
-### Dans Game.cpp
-- Nombre de rounds : `TILES_PER_PLAYER = 9`
-- Calcul bonus : `1.5 * numPlayers` (Tile Exchange), `0.5 * numPlayers` (Stone)
+Cette vue structurelle sert de guide pour naviguer dans le dépôt, ajouter des fonctionnalités ou créer de nouveaux tests.
 

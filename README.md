@@ -71,7 +71,8 @@ make
 
 ## 📚 Documentation
 
-Voir `docs/ARCHITECTURE.md` pour l'architecture détaillée.
+- `docs/USER_DOCUMENTATION.md` : prise en main et déroulement d’une partie via la CLI.
+- `docs/TECHNICAL_DOCUMENTATION.md` : architecture, décisions d’implémentation et détails techniques.
 
 ## 🎯 Fonctionnalités
 

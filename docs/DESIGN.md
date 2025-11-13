@@ -1,185 +1,75 @@
-# Design Document - Laying Grass Game
+# Document de conception – *Laying Grass*
 
-## Diagramme d'Architecture
+## 1. Rappels de gameplay
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         main.cpp                             │
-│                    Point d'entrée                            │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Game                                 │
-│  - Boucle principale (9 rounds)                             │
-│  - Gestion des tours                                        │
-│  - Conditions de victoire                                    │
-└───┬──────────┬──────────┬──────────┬──────────┬────────────┘
-    │          │          │          │          │
-    ▼          ▼          ▼          ▼          ▼
-┌─────────┐ ┌──────┐ ┌───────┐ ┌──────────┐ ┌─────────┐
-│ Board   │ │Queue │ │Player │ │Validator │ │ Bonus   │
-│         │ │      │ │       │ │          │ │ Manager │
-│ - Grille│ │ - 96 │ │ - ID  │ │ - Rules  │ │ - Tile  │
-│ - Bonus │ │ tiles│ │ - Cou-│ │ - Valid. │ │   Exch. │
-│ - Stones│ │ - Ex-│ │   pons│ │          │ │ - Stone │
-│ - Terr. │ │ change│ │       │ │          │ │ - Robb. │
-└────┬────┘ └──────┘ └───────┘ └──────────┘ └─────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Tile                                 │
-│  - 96 types                                                  │
-│  - Rotation (90°, 180°, 270°)                               │
-│  - Flip (H, V)                                               │
-│  - Toutes orientations                                       │
-└─────────────────────────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Algorithms                              │
-│  - findLargestSquare() (DP O(n²))                           │
-│  - isConnectedComponent() (BFS/DFS O(n))                    │
-│  - getConnectedTerritory()                                  │
-└─────────────────────────────────────────────────────────────┘
-```
+- 2 à 9 joueurs.
+- Plateau 20×20 (≤ 4 joueurs) ou 30×30 (≥ 5 joueurs).
+- Chaque joueur possède une tuile de départ 1×1 posée manuellement.
+- À son tour :
+  1. prendre la prochaine tuile ou échanger contre l’une des cinq suivantes (1 coupon), ou retirer une pierre (1 coupon) ;
+  2. transformer la tuile (rotations, miroirs) ;
+  3. sélectionner une position et prévisualiser le placement ;
+  4. valider ou annuler ;
+  5. en cas de réussite, mettre à jour le territoire et appliquer les bonus ; sinon réessayer ou défausser.
+- Une tuile défaussée n’est pas remise dans la file.
+- Après 9 tours maximum par joueur : possibilité d’acheter des tuiles 1×1 avec les coupons restants.
+- Victoire : plus grand carré de territoire ; égalité départagée au nombre total de cases possédées.
 
-## Flux d'Exécution
+## 2. Objectifs de game design
+
+- Offrir des décisions tactiques à chaque tour (piocher, échanger, retirer une pierre, poser ou défausser).
+- Encourager la projection à moyen terme avec la contrainte du plus grand carré.
+- Maintenir une tension sur les ressources : coupons d’échange limités, pierres imposées par les bonus.
+- Préserver la lisibilité de l’état du plateau en CLI (prévisualisation, légende, résumé de tour).
+
+## 3. Cycle d’exécution détaillé
 
 ```
-1. Initialisation
-   ├──> Saisie nombre de joueurs (2-9)
-   ├──> Création Board (20×20 ou 30×30)
-   ├──> Initialisation Queue (96 tuiles mélangées)
-   ├──> Placement tuiles de départ (1×1 par joueur)
-   └──> Placement cases bonus aléatoires
+Game::Game()
+ ├─ initialise les joueurs (noms, couleurs, ordre aléatoire)
+ ├─ configure la file Queue (ratio 10,67 tuiles/joueur, min 9)
+ ├─ initialise le plateau (bonus aléatoires, pierres vides)
+ └─ initStartingTiles() : chaque joueur pose sa tuile de départ
 
-2. Boucle Principale (9 rounds)
-   └──> Pour chaque joueur :
-       ├──> Obtenir tuile (Queue ou échange)
-       ├──> Saisie position et orientation
-       ├──> Validation (Validator)
-       ├──> Placement (Board::placeTile)
-       ├──> Vérification bonus capture
-       └──> Mise à jour territoire
-
-3. Phase d'Achat
-   └──> Chaque joueur peut acheter tuiles 1×1
-
-4. Calcul du Gagnant
-   ├──> Algorithms::findLargestSquare() pour chaque joueur
-   ├──> Comparaison des carrés
-   └──> Tiebreaker : plus de tuiles d'herbe
-
-5. Affichage Résultats
+Game::run()
+ ├─ while running && Queue::hasNext() && currentRound < 9
+ │   ├─ Player current = players[currentPlayerIndex]
+ │   └─ handlePlayerTurn(current)
+ │       ├─ menu (tirer/échanger/retirer pierre)
+ │       ├─ InputHandler pour rotation & position
+ │       ├─ Validator::isValidPlacement()
+ │       ├─ Board::placeTile() + Board::addTerritory()
+ │       └─ BonusManager::processBonusCapture()
+ │   └─ advanceTurn()
+ ├─ processFinalPhase() : achat tuiles 1×1
+ └─ determineWinner() + showSummary()
 ```
 
-## Structures de Données Clés
+## 4. Bonus et effets
 
-### Tile
-```cpp
-- id: int
-- shape: vector<vector<bool>> (matrice)
-- width, height: int
-- Méthodes: rotate, flip, getAllOrientations
-```
+| Symbole | Nom        | Placement initial                              | Condition de capture                                        | Effet immédiat                                                            |
+|---------|------------|-------------------------------------------------|-------------------------------------------------------------|---------------------------------------------------------------------------|
+| `E`     | Échange    | 1,5 case par joueur (arrondi supérieur)        | Les 4 cases cardinales appartiennent au joueur              | +1 coupon d’échange.                                                      |
+| `P`     | Pierre     | 0,5 case par joueur (arrondi supérieur)        | Idem ; **si recouverte directement, bonus perdu**           | Le joueur doit placer une pierre sur un emplacement libre.                |
+| `R`     | Vol        | 1 case par joueur                              | Idem                                                        | Choisir un adversaire et lui voler une case (territoire + score).         |
 
-### Board
-```cpp
-- grid: vector<vector<int>> (joueur ID par cellule)
-- bonusGrid: vector<vector<bool>>
-- bonusTypes: vector<vector<BonusType>>
-- stoneGrid: vector<vector<bool>>
-- playerTerritories: map<int, set<Position>>
-```
+Les bonus capturés sont enregistrés par `Board::claimBonusSquare` puis `BonusManager::activate…`. Une case bonus recouverte directement est simplement perdue (`Board::placeTile` supprime le drapeau `bonusGrid`).
 
-### Player
-```cpp
-- id: int
-- name: string
-- startPosition: Position
-- exchangeCoupons: int
-- grassTilesPlaced: int
-```
+- Pour des détails d’implémentation (structures de données, règles de validation), se référer à `TECHNICAL_DOCUMENTATION.md`.
 
-### Queue
-```cpp
-- mainQueue: vector<Tile> (96 tuiles)
-- exchangeQueue: vector<Tile> (tuiles échangées)
-- currentIndex: size_t
-```
+## 5. Points d’équilibrage
 
-## Algorithmes Détaillés
+- **Tirage aléatoire vs. information** : la prévisualisation de cinq tuiles via l’échange doit rester un avantage conditionné au coupon.
+- **Bonus pierre** : impose une contrainte négative pour compenser l’accès gratuit au bonus ; son placement doit rester libre pour garantir des décisions intéressantes.
+- **Vol** : limiter la cible aux joueurs ayant un territoire non vide évite les tours « morts ».
+- **Coupons** : un coupon initial par joueur crée un espace décisionnel dès le premier tour sans déséquilibrer les premiers joueurs.
 
-### 1. findLargestSquare()
-**Objectif** : Trouver le plus grand carré dans le territoire d'un joueur
+## 6. pistes futures
 
-**Algorithme** : Dynamic Programming
-```
-Pour chaque position (i, j):
-  si cellule(i,j) appartient au joueur:
-    dp[i][j] = min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]) + 1
-  sinon:
-    dp[i][j] = 0
+- Mode « annulation » pour revenir en arrière avant validation définitive.
+- Historique des coups pour la relecture.
+- Export JSON de l’état pour charger/reprendre une partie.
+- IA (heuristique simple sur meilleure position possible) ; l’architecture actuelle permet de plugger un module de décision au moment où `handlePlayerTurn` attend une saisie.
 
-Résultat = max(dp[i][j]) pour tout i, j
-```
-
-**Complexité** : O(n²) où n = taille de la grille
-
-### 2. isConnectedComponent()
-**Objectif** : Vérifier que le territoire est connecté
-
-**Algorithme** : BFS depuis la tuile de départ
-```
-Queue q
-Set visited
-q.push(startPosition)
-visited.add(startPosition)
-
-Tant que q non vide:
-  pos = q.pop()
-  Pour chaque voisin de pos:
-    si voisin appartient au territoire et non visité:
-      q.push(voisin)
-      visited.add(voisin)
-
-Résultat = (visited.size() == territory.size())
-```
-
-**Complexité** : O(k) où k = nombre de cellules du territoire
-
-### 3. Validation de Placement
-**Vérifications** (dans l'ordre) :
-1. Limites de la grille : toutes les cellules de la tuile dans [0, size-1]
-2. Première tuile : touche startPosition
-3. Tuiles suivantes : touche le territoire (au moins 1 côté)
-4. Pas de chevauchement : pas de cellule déjà occupée
-5. Pas de contact ennemi : pas de cellule adjacente à un ennemi
-6. Pas de conflit pierre : pas de pierre sur la zone
-
-## Gestion des Bonus
-
-### Tile Exchange Square
-- Placement : 1.5 par joueur (arrondi supérieur)
-- Activation : Capturer avec tuile sur les 4 directions
-- Effet : Ajoute 1 coupon d'échange
-
-### Stone Square
-- Placement : 0.5 par joueur (arrondi supérieur)
-- Activation : Capturer avec tuile
-- Effet : Permet placer une pierre (bloque placement)
-- Coût retrait : 1 coupon
-
-### Robbery Square
-- Placement : 1 par joueur
-- Activation : Capturer avec tuile
-- Effet : Vole une tuile d'un autre joueur
-
-## Points d'Attention
-
-1. **Queue avec Échange** : Les tuiles échangées doivent revenir après épuisement de la queue principale
-2. **Connectivité** : Le territoire doit rester connecté à la tuile de départ
-3. **Plus Grand Carré** : Peut être non-contigu si le territoire est complexe
-4. **Tiebreaker** : Si carrés égaux, compter toutes les tuiles d'herbe (pas seulement le carré)
+Ce design document est aligné avec l’implémentation actuelle et doit servir de référence pour la maintenance ou l’ajout de nouvelles fonctionnalités.
 
