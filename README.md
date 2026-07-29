@@ -4,13 +4,16 @@ Jeu de placement de tuiles inspiré de "The Devil's Plan" (Episode 8)
 
 Lien vers le repo : https://github.com/Noa-trny/laying_grass_cpp
 
+**C++17 pur, zéro dépendance** — bibliothèque standard uniquement, jusqu'au parseur JSON
+de `data/tiles.json` écrit à la main (`TileParser`).
+
 ## 🎮 Règles du Jeu
 
 - **Joueurs** : 2 à 9 joueurs
 - **Grille** : 20×20 (2-4 joueurs) ou 30×30 (5-9 joueurs)
 - **Rounds** : 9 rounds par joueur
 - **Tuiles** : 96 types différents (rotations et flips possibles)
-- **Objectif** : Créer le plus grand territoire carré
+- **Objectif** : posséder le plus grand carré plein en fin de partie — à défaut, le plus grand territoire total départage
 
 ### Mécaniques Spéciales
 
@@ -18,7 +21,7 @@ Lien vers le repo : https://github.com/Noa-trny/laying_grass_cpp
 - **Cases Bonus** :
   - **Tile Exchange** : Gagne un coupon d'échange
   - **Stone** : Place une pierre (bloque les adversaires)
-  - **Robbery** : Vole une tuile à un adversaire
+  - **Robbery** : annexe une case du territoire d'un adversaire
 
 ## 📁 Structure du Projet
 
@@ -27,7 +30,7 @@ laying_grass_cpp/
 ├── include/          # En-têtes (.hpp)
 ├── src/              # Sources (.cpp)
 ├── docs/             # Documentation
-├── tests/            # Tests unitaires
+├── data/tiles.json   # Les 96 formes de tuiles
 ├── CMakeLists.txt    # Build CMake
 └── Makefile          # Build Make
 ```
@@ -70,6 +73,13 @@ make
 
 - C++17 ou supérieur
 - Compilateur supportant C++17 (GCC, Clang, MSVC)
+
+## 🧠 Ce que ce projet montre
+
+RAII, `enum class`, `constexpr`, STL — et une séparation nette entre règles (`Game`),
+validation (`Validator`), algorithmes (`Algorithms::findLargestSquare`, connexité) et
+affichage console. Le choix d'écrire le parseur plutôt que d'importer une bibliothèque
+pour un seul fichier résume l'esprit du projet.
 
 ## 📚 Documentation
 
